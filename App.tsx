@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Timer from './components/Timer';
+import UpdateChecker from './components/UpdateChecker';
 import { Icons } from './constants';
 import { WorkoutState, HistoryItem, ExerciseConfig } from './types';
 import { getWorkoutTip } from './services/geminiService';
@@ -15,7 +16,7 @@ const App: React.FC = () => {
     isActive: false,
     lastTimestamp: 0,
   });
-  
+
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showRoutineMenu, setShowRoutineMenu] = useState(false);
   const [tip, setTip] = useState<string | null>(null);
@@ -24,8 +25,8 @@ const App: React.FC = () => {
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
   );
 
-  const currentExercise = useMemo(() => 
-    state.routine[state.currentExerciseIndex] || state.routine[0], 
+  const currentExercise = useMemo(() =>
+    state.routine[state.currentExerciseIndex] || state.routine[0],
     [state.routine, state.currentExerciseIndex]
   );
 
@@ -51,7 +52,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const savedHistory = localStorage.getItem('hyperlift_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
-    
+
     const savedState = localStorage.getItem('hyperlift_state_v4');
     if (savedState) {
       const parsed: WorkoutState = JSON.parse(savedState);
@@ -104,18 +105,18 @@ const App: React.FC = () => {
     if (state.currentSetIndex < currentExercise.restTimes.length) {
       const nextSetIndex = state.currentSetIndex + 1;
       const nextRest = currentExercise.restTimes[Math.min(state.currentSetIndex, currentExercise.restTimes.length - 1)];
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         currentSetIndex: nextSetIndex,
         timeLeft: nextRest,
-        isActive: true 
+        isActive: true
       }));
     }
   };
 
   const finishExercise = () => {
     if (state.currentSetIndex === 0) return;
-    
+
     // Salva no histórico
     const newItem = {
       id: Date.now().toString(),
@@ -175,17 +176,17 @@ const App: React.FC = () => {
       const newRoutine = [...prev.routine];
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
       if (targetIndex < 0 || targetIndex >= newRoutine.length) return prev;
-      
+
       const temp = newRoutine[index];
       newRoutine[index] = newRoutine[targetIndex];
       newRoutine[targetIndex] = temp;
-      
-      return { 
-        ...prev, 
+
+      return {
+        ...prev,
         routine: newRoutine,
         // Ajusta o index atual se o exercício que moveu for o ativo
-        currentExerciseIndex: prev.currentExerciseIndex === index ? targetIndex : 
-                             prev.currentExerciseIndex === targetIndex ? index : prev.currentExerciseIndex
+        currentExerciseIndex: prev.currentExerciseIndex === index ? targetIndex :
+          prev.currentExerciseIndex === targetIndex ? index : prev.currentExerciseIndex
       };
     });
   };
@@ -254,7 +255,7 @@ const App: React.FC = () => {
                   <span className="text-[10px] text-zinc-600 font-black uppercase tracking-tighter ml-1">Série {state.currentSetIndex}/{currentExercise.restTimes.length}</span>
                 </div>
               </div>
-              <button onClick={() => {setLoadingTip(true); getWorkoutTip(currentExercise.name).then(t => {setTip(t); setLoadingTip(false);})}} 
+              <button onClick={() => { setLoadingTip(true); getWorkoutTip(currentExercise.name).then(t => { setTip(t); setLoadingTip(false); }) }}
                 className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-[#00FF41]">
                 {loadingTip ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <Icons.Sparkles />}
               </button>
@@ -264,7 +265,7 @@ const App: React.FC = () => {
 
           {/* Timer Section */}
           <div className="flex-1 flex items-center justify-center py-6">
-            <Timer 
+            <Timer
               timeLeft={state.timeLeft}
               isActive={state.isActive}
               duration={currentExercise.restTimes[Math.max(0, state.currentSetIndex - 1)] || 90}
@@ -276,9 +277,9 @@ const App: React.FC = () => {
 
           {/* Bottom History/Status Bar */}
           <div className="flex items-center gap-4 px-2 opacity-50 mb-4">
-             <div className="flex-1 h-[1px] bg-zinc-800"></div>
-             <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600">Próximo: {state.routine[state.currentExerciseIndex + 1]?.name || 'Fim'}</span>
-             <div className="flex-1 h-[1px] bg-zinc-800"></div>
+            <div className="flex-1 h-[1px] bg-zinc-800"></div>
+            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-600">Próximo: {state.routine[state.currentExerciseIndex + 1]?.name || 'Fim'}</span>
+            <div className="flex-1 h-[1px] bg-zinc-800"></div>
           </div>
         </main>
       ) : (
@@ -288,7 +289,8 @@ const App: React.FC = () => {
             <h2 className="text-2xl font-black uppercase italic tracking-tighter">Minha Rotina</h2>
             <button onClick={addExerciseToRoutine} className="bg-[#00FF41] text-black px-4 py-2 rounded-xl text-[10px] font-black tracking-widest">+ ADICIONAR</button>
           </div>
-          
+          <UpdateChecker />
+
           <div className="space-y-4 pb-20">
             {state.routine.map((ex, idx) => (
               <div key={ex.id} className={`p-5 rounded-3xl border transition-all ${state.currentExerciseIndex === idx ? 'bg-zinc-900 border-[#00FF41]' : 'bg-zinc-900/40 border-zinc-800'}`}>
@@ -297,7 +299,7 @@ const App: React.FC = () => {
                     <button onClick={() => moveExercise(idx, 'up')} className="text-zinc-600 hover:text-[#00FF41] disabled:opacity-0" disabled={idx === 0}><i className="fa-solid fa-chevron-up"></i></button>
                     <button onClick={() => moveExercise(idx, 'down')} className="text-zinc-600 hover:text-[#00FF41] disabled:opacity-0" disabled={idx === state.routine.length - 1}><i className="fa-solid fa-chevron-down"></i></button>
                   </div>
-                  <input 
+                  <input
                     className="flex-1 bg-transparent border-none text-xl font-black focus:outline-none uppercase placeholder:text-zinc-800"
                     value={ex.name}
                     onChange={(e) => updateExerciseName(ex.id, e.target.value)}
@@ -305,11 +307,11 @@ const App: React.FC = () => {
                   />
                   <button onClick={() => removeExercise(ex.id)} className="w-8 h-8 text-red-900 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-2">
                   {ex.restTimes.map((rest, ridx) => (
                     <div key={ridx} className="bg-black/40 px-3 py-2 rounded-xl flex items-center gap-2 border border-zinc-800">
-                      <span className="text-[10px] font-bold text-zinc-600">S{ridx+1}</span>
+                      <span className="text-[10px] font-bold text-zinc-600">S{ridx + 1}</span>
                       <span className="mono font-black text-xs w-8">{rest}s</span>
                       <div className="flex flex-col">
                         <button onClick={() => updateRestTime(ex.id, ridx, 5)} className="text-[10px] text-[#00FF41] active:scale-125"><i className="fa-solid fa-caret-up"></i></button>
@@ -317,7 +319,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  <button 
+                  <button
                     onClick={() => setState(p => ({
                       ...p,
                       routine: p.routine.map(e => e.id === ex.id ? { ...e, restTimes: [...e.restTimes, 60] } : e)
@@ -327,7 +329,7 @@ const App: React.FC = () => {
                     <i className="fa-solid fa-plus text-xs"></i>
                   </button>
                   {ex.restTimes.length > 1 && (
-                    <button 
+                    <button
                       onClick={() => setState(p => ({
                         ...p,
                         routine: p.routine.map(e => e.id === ex.id ? { ...e, restTimes: e.restTimes.slice(0, -1) } : e)
@@ -350,21 +352,19 @@ const App: React.FC = () => {
           <button
             onClick={handleSetComplete}
             disabled={state.currentSetIndex >= currentExercise.restTimes.length || showRoutineMenu}
-            className={`flex-1 h-16 rounded-2xl font-black text-sm tracking-[0.2em] flex items-center justify-center transition-all active:scale-[0.96] shadow-2xl ${
-              state.currentSetIndex >= currentExercise.restTimes.length || showRoutineMenu
-                ? 'bg-zinc-900 text-zinc-700 border border-zinc-800'
-                : 'bg-white text-black'
-            }`}
+            className={`flex-1 h-16 rounded-2xl font-black text-sm tracking-[0.2em] flex items-center justify-center transition-all active:scale-[0.96] shadow-2xl ${state.currentSetIndex >= currentExercise.restTimes.length || showRoutineMenu
+              ? 'bg-zinc-900 text-zinc-700 border border-zinc-800'
+              : 'bg-white text-black'
+              }`}
           >
             SÉRIE OK <i className="fa-solid fa-plus-circle ml-2 text-base opacity-20"></i>
           </button>
-          
+
           <button
             onClick={finishExercise}
             disabled={state.currentSetIndex === 0 || showRoutineMenu}
-            className={`w-20 h-16 rounded-2xl flex flex-col items-center justify-center border transition-all active:scale-[0.96] ${
-              state.currentSetIndex === 0 || showRoutineMenu ? 'bg-zinc-950 border-zinc-900 text-zinc-800' : 'bg-zinc-900 border-zinc-800 text-[#00FF41]'
-            }`}
+            className={`w-20 h-16 rounded-2xl flex flex-col items-center justify-center border transition-all active:scale-[0.96] ${state.currentSetIndex === 0 || showRoutineMenu ? 'bg-zinc-950 border-zinc-900 text-zinc-800' : 'bg-zinc-900 border-zinc-800 text-[#00FF41]'
+              }`}
           >
             <Icons.Check />
             <span className="text-[9px] font-black mt-1 uppercase">{state.currentExerciseIndex < state.routine.length - 1 ? 'Next' : 'Fim'}</span>

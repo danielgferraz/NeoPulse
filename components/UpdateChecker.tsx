@@ -49,6 +49,7 @@ const UpdateChecker: React.FC = () => {
                 </a>
             ) : (
                 <button
+                    title="Verificar Atualizações"
                     onClick={handleCheck}
                     disabled={status === 'checking'}
                     className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-zinc-400 active:scale-95 disabled:opacity-50"

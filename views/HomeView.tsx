@@ -4,6 +4,7 @@ import { db } from '../services/db';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { WidgetService } from '../services/widgetService';
+import { Preferences } from '@capacitor/preferences';
 
 const HomeView: React.FC = () => {
     const trainings = useLiveQuery(() => db.trainings.orderBy('order').toArray());
@@ -14,8 +15,9 @@ const HomeView: React.FC = () => {
 
     const [weightInput, setWeightInput] = useState('');
     const [showWeightInput, setShowWeightInput] = useState(false);
+    const [activeSession, setActiveSession] = useState<any>(null);
 
-    // Widget Sync
+    // Widget Sync & Persistent Session Check
     React.useEffect(() => {
         if (history && monthlyGoal !== undefined) {
             WidgetService.sync({
@@ -24,7 +26,21 @@ const HomeView: React.FC = () => {
                 weight: weightLogs?.[0]?.weight?.toString() || '---'
             });
         }
-    }, [history, monthlyGoal, weightLogs]);
+
+        const checkActive = async () => {
+            const { value } = await Preferences.get({ key: 'neopulse_persistent_session' });
+            if (value) {
+                const session = JSON.parse(value);
+                const tr = await db.trainings.get(session.trainingId);
+                if (tr) {
+                    setActiveSession({ ...session, trainingName: tr.name });
+                }
+            } else {
+                setActiveSession(null);
+            }
+        };
+        checkActive();
+    }, [history, monthlyGoal, weightLogs, trainings]);
 
     const logWeight = async () => {
         const val = parseFloat(weightInput.replace(',', '.'));
@@ -156,6 +172,29 @@ const HomeView: React.FC = () => {
                     <span className="text-xl font-black uppercase italic tracking-tighter text-black">Iniciar Treino</span>
                 </button>
             </div>
+
+            {/* Resume Active Session */}
+            {activeSession && (
+                <div className="px-2">
+                    <button
+                        onClick={() => navigate(`/session/${activeSession.trainingId}`)}
+                        className="w-full p-6 bg-zinc-900 border border-zinc-800 rounded-[2rem] flex items-center justify-between group active:scale-[0.98] transition-all shadow-xl"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
+                                <i className="fa-solid fa-rotate-left text-zinc-400"></i>
+                            </div>
+                            <div className="text-left">
+                                <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest leading-none">Continuar Treino</span>
+                                <p className="text-lg font-black uppercase italic text-white mt-1">{activeSession.trainingName}</p>
+                            </div>
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-white group-hover:bg-zinc-700 transition-colors">
+                            <i className="fa-solid fa-chevron-right"></i>
+                        </div>
+                    </button>
+                </div>
+            )}
 
             {/* Selection Modal (Simplified Overlay) */}
             {showSelection && (

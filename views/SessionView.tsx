@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
@@ -26,6 +26,8 @@ const SessionView: React.FC = () => {
     const [timeLeft, setTimeLeft] = useState(90);
     const [isStopwatch, setIsStopwatch] = useState(false);
     const [stopwatchTime, setStopwatchTime] = useState(0);
+    const [hasRestored, setHasRestored] = useState(false);
+    const lastSessionIndices = useRef({ exercise: -1, set: -1 });
 
     const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
 
@@ -76,7 +78,7 @@ const SessionView: React.FC = () => {
             NotificationService.showStickyNotification(
                 `Treino: ${currentExercise?.name}`,
                 `Série ${currentSetIndex + 1} | Descanso: ${timeLeft}s`,
-                !isActive, // Not used yet but good for future
+                !isActive,
                 1001,
                 'neopulse_silent'
             );
@@ -96,8 +98,7 @@ const SessionView: React.FC = () => {
                 'neopulse_silent'
             );
             interval = setInterval(() => setStopwatchTime(prev => prev + 1), 1000);
-        } else if (!isActive && currentExercise) {
-            // Updated notification when paused to show Resume button
+        } else if (!isActive && currentExercise && hasRestored) {
             NotificationService.showStickyNotification(
                 `Pausado: ${currentExercise?.name}`,
                 isStopwatch ? `Cronômetro: ${stopwatchTime}s` : `Série ${currentSetIndex + 1} | Pausado em ${timeLeft}s`,
@@ -107,31 +108,100 @@ const SessionView: React.FC = () => {
             );
         }
 
-        // Only cancel alert specific notification, not the main one if we want it to stay
-        // but if the workout ends or we leave, we cancel all.
-        // For now, let's not cancel 1001 unless we unmount.
-
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [isActive, timeLeft, stopwatchTime, isStopwatch, currentExercise, currentSetIndex]);
+    }, [isActive, timeLeft, stopwatchTime, isStopwatch, currentExercise, currentSetIndex, hasRestored]);
+
+    // Persistence: Restore state
+    useEffect(() => {
+        const restoreSession = async () => {
+            try {
+                const { value } = await Preferences.get({ key: 'neopulse_persistent_session' });
+                if (value) {
+                    const saved = JSON.parse(value);
+                    if (saved.trainingId === trainingId) {
+                        console.log("Restoring session...", saved);
+                        setCurrentExerciseIndex(saved.exerciseIndex);
+                        setCurrentSetIndex(saved.setIndex);
+
+                        const now = Date.now();
+                        const elapsed = Math.floor((now - saved.lastTimestamp) / 1000);
+
+                        if (saved.isActive) {
+                            if (saved.isStopwatch) {
+                                setStopwatchTime(saved.stopwatchTime + elapsed);
+                                setIsStopwatch(true);
+                                setIsActive(true);
+                            } else {
+                                const newTimeLeft = Math.max(0, saved.timeLeft - elapsed);
+                                setTimeLeft(newTimeLeft);
+                                setIsStopwatch(false);
+                                if (newTimeLeft > 0) {
+                                    setIsActive(true);
+                                }
+                            }
+                        } else {
+                            setTimeLeft(saved.timeLeft);
+                            setStopwatchTime(saved.stopwatchTime);
+                            setIsStopwatch(saved.isStopwatch);
+                            setIsActive(false);
+                        }
+                        // Update ref so that reset effect knows we've already set these
+                        lastSessionIndices.current = { exercise: saved.exerciseIndex, set: saved.setIndex };
+                    }
+                }
+            } catch (e) {
+                console.error("Error restoring session:", e);
+            } finally {
+                setHasRestored(true);
+            }
+        };
+
+        restoreSession();
+    }, [trainingId]);
+
+    // Persistence: Auto-save state
+    useEffect(() => {
+        if (!hasRestored || !exercises || exercises.length === 0) return;
+
+        Preferences.set({
+            key: 'neopulse_persistent_session',
+            value: JSON.stringify({
+                trainingId,
+                exerciseIndex: currentExerciseIndex,
+                setIndex: currentSetIndex,
+                timeLeft,
+                isActive,
+                isStopwatch,
+                stopwatchTime,
+                lastTimestamp: Date.now()
+            })
+        });
+    }, [trainingId, currentExerciseIndex, currentSetIndex, timeLeft, isActive, isStopwatch, stopwatchTime, hasRestored, exercises]);
 
     // Reset timer whenever exercise/set changes
     useEffect(() => {
-        if (currentExercise) {
-            const duration = currentExercise.restTimes[Math.min(currentSetIndex, currentExercise.restTimes.length - 1)] || 90;
-            setTimeLeft(duration);
+        if (currentExercise && hasRestored) {
+            const isDifferent = lastSessionIndices.current.exercise !== currentExerciseIndex ||
+                lastSessionIndices.current.set !== currentSetIndex;
 
-            // Sync widget (Initial state for this exercise/set)
-            WidgetService.syncSession({
-                exercise: currentExercise.name,
-                next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
-                currentSet: currentSetIndex + 1,
-                totalSets: currentExercise.restTimes.length,
-                timerEnd: null
-            });
+            if (isDifferent) {
+                const duration = currentExercise.restTimes[Math.min(currentSetIndex, currentExercise.restTimes.length - 1)] || 90;
+                setTimeLeft(duration);
+                lastSessionIndices.current = { exercise: currentExerciseIndex, set: currentSetIndex };
+
+                // Sync widget (Initial state for this exercise/set)
+                WidgetService.syncSession({
+                    exercise: currentExercise.name,
+                    next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                    currentSet: currentSetIndex + 1,
+                    totalSets: currentExercise.restTimes.length,
+                    timerEnd: null
+                });
+            }
         }
-    }, [currentExercise, currentSetIndex, exercises, currentExerciseIndex]);
+    }, [currentExercise, currentSetIndex, exercises, currentExerciseIndex, hasRestored]);
 
 
     const scheduleAlert = async () => {
@@ -203,14 +273,19 @@ const SessionView: React.FC = () => {
             });
 
             navigate(`/summary?tid=${trainingId}&dur=00:00`);
+            // Clear persistent session
+            Preferences.remove({ key: 'neopulse_persistent_session' });
         }
     };
 
-    // Clear session widget and commands on unmount
+    // Clear session widget and commands on unmount, but keep persistence if active
     useEffect(() => {
         return () => {
+            // Only clear widget if NOT finishing or if explicitly desired
+            // For now, let's keep it clean on unmount from app but persistent in Preferences
             WidgetService.syncSession(null);
             Preferences.remove({ key: 'neopulse_widget_command' });
+            NotificationService.cancel(1001);
         };
     }, []);
 

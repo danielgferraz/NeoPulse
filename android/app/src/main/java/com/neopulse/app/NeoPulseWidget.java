@@ -1,5 +1,7 @@
 package com.neopulse.app;
 
+import com.neopulse.app.R;
+
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;

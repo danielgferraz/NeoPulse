@@ -12,9 +12,10 @@ interface TimerProps {
   onAdjust: (delta: number) => void;
   soundMode?: 'beep' | 'voice' | 'silent';
   hapticPattern?: 'heavy' | 'medium' | 'light' | 'dual' | 'triple';
+  isStopwatch?: boolean;
 }
 
-const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, onReset, onAdjust, soundMode = 'beep', hapticPattern = 'medium' }) => {
+const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, onReset, onAdjust, soundMode = 'beep', hapticPattern = 'medium', isStopwatch = false }) => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastBeepedTime = useRef<number>(-1);
 
@@ -88,7 +89,7 @@ const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, o
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const percentage = (timeLeft / duration) * 100;
+  const percentage = isStopwatch ? 0 : (timeLeft / duration) * 100;
   const isUrgent = timeLeft <= 10 && timeLeft > 0;
 
   const size = 272;

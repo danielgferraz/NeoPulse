@@ -23,10 +23,10 @@ export const NotificationService = {
             });
 
             await LocalNotifications.createChannel({
-                id: 'neopulse_realtime',
-                name: 'Silent Updates',
-                importance: 2, // Low - Stop flashing/beeping on update
-                description: 'Silent Timer Updates',
+                id: 'neopulse_ticker',
+                name: 'Timer Realtime',
+                importance: 1, // MIN - No visuals/sound during updates
+                description: 'Real-time timer updates',
                 vibration: false,
                 sound: undefined
             });
@@ -59,7 +59,7 @@ export const NotificationService = {
         }
     },
 
-    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_realtime') {
+    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_ticker') {
         if (Capacitor.getPlatform() === 'web') return; // Desktop doesn't support ongoing sticky notifications easily
 
         await LocalNotifications.schedule({

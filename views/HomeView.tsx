@@ -157,21 +157,23 @@ const HomeView: React.FC = () => {
     return (
         <div className="w-full max-w-md flex flex-col gap-4 pb-20 animate-in fade-in">
             {/* Start Workout Primary Action */}
-            <div className="px-2">
-                <button
-                    onClick={startWorkout}
-                    style={{
-                        backgroundColor: theme.primary,
-                        boxShadow: `0 0 30px ${theme.primary}50`
-                    }}
-                    className="w-full py-6 rounded-[2rem] flex items-center justify-center gap-3 active:scale-[0.98] transition-all transform group"
-                >
-                    <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
-                        <i className={`fa-solid fa-play text-xs`} style={{ color: theme.primary }}></i>
-                    </div>
-                    <span className="text-xl font-black uppercase italic tracking-tighter text-black">Iniciar Treino</span>
-                </button>
-            </div>
+            {!activeSession && (
+                <div className="px-2">
+                    <button
+                        onClick={startWorkout}
+                        style={{
+                            backgroundColor: theme.primary,
+                            boxShadow: `0 0 30px ${theme.primary}50`
+                        }}
+                        className="w-full py-6 rounded-[2rem] flex items-center justify-center gap-3 active:scale-[0.98] transition-all transform group"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
+                            <i className={`fa-solid fa-play text-xs`} style={{ color: theme.primary }}></i>
+                        </div>
+                        <span className="text-xl font-black uppercase italic tracking-tighter text-black">Iniciar Treino</span>
+                    </button>
+                </div>
+            )}
 
             {/* Resume Active Session */}
             {activeSession && (
@@ -297,17 +299,19 @@ const HomeView: React.FC = () => {
                 )}
             </div>
 
-            <div className="flex justify-between items-center mb-4 px-2">
-                <h2 className="text-xl font-black uppercase italic tracking-tighter" style={{ color: theme.primary }}>Meus Treinos</h2>
-                <button
-                    title="Adicionar Treino"
-                    onClick={addTraining}
-                    style={{ backgroundColor: theme.primary, boxShadow: `0 0 15px ${theme.primary}40` }}
-                    className="text-black w-8 h-8 rounded-lg flex items-center justify-center font-bold"
-                >
-                    <i className="fa-solid fa-plus"></i>
-                </button>
-            </div>
+            {!activeSession && (
+                <div className="flex justify-between items-center mb-4 px-2">
+                    <h2 className="text-xl font-black uppercase italic tracking-tighter" style={{ color: theme.primary }}>Meus Treinos</h2>
+                    <button
+                        title="Adicionar Treino"
+                        onClick={addTraining}
+                        style={{ backgroundColor: theme.primary, boxShadow: `0 0 15px ${theme.primary}40` }}
+                        className="text-black w-8 h-8 rounded-lg flex items-center justify-center font-bold"
+                    >
+                        <i className="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+            )}
 
 
             {/* Weight Logging Card */}
@@ -343,42 +347,44 @@ const HomeView: React.FC = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
-                {trainings?.map((training) => (
-                    <div key={training.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl flex justify-between items-center group active:scale-[0.98] transition-transform">
-                        <div onClick={() => navigate(`/session/${training.id}`)} className="flex-1 cursor-pointer">
-                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md font-bold tracking-widest uppercase">Folder</span>
-                            <h3 className="text-xl font-black text-white mt-1 uppercase italic">{training.name}</h3>
-                            <p className="text-xs text-zinc-500 mt-1 font-bold">Toque para iniciar</p>
-                        </div>
+            {!activeSession && (
+                <div className="grid grid-cols-1 gap-3">
+                    {trainings?.map((training) => (
+                        <div key={training.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl flex justify-between items-center group active:scale-[0.98] transition-transform">
+                            <div onClick={() => navigate(`/session/${training.id}`)} className="flex-1 cursor-pointer">
+                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md font-bold tracking-widest uppercase">Folder</span>
+                                <h3 className="text-xl font-black text-white mt-1 uppercase italic">{training.name}</h3>
+                                <p className="text-xs text-zinc-500 mt-1 font-bold">Toque para iniciar</p>
+                            </div>
 
-                        <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 ml-2">
-                            <button
-                                title="Editar Treino"
-                                onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }}
-                                className="w-10 h-10 rounded-xl bg-zinc-950 text-zinc-400 border border-zinc-800 flex items-center justify-center hover:text-white"
-                                style={{ borderColor: `${theme.primary}20` }}
-                            >
-                                <i className="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button
-                                title="Duplicar Treino"
-                                onClick={(e) => { e.stopPropagation(); duplicateTraining(training.id!); }}
-                                className="w-10 h-10 rounded-xl bg-zinc-950 text-zinc-600 border border-zinc-800 flex items-center justify-center hover:text-white hover:border-zinc-500"
-                            >
-                                <i className="fa-solid fa-copy"></i>
-                            </button>
+                            <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 ml-2">
+                                <button
+                                    title="Editar Treino"
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }}
+                                    className="w-10 h-10 rounded-xl bg-zinc-950 text-zinc-400 border border-zinc-800 flex items-center justify-center hover:text-white"
+                                    style={{ borderColor: `${theme.primary}20` }}
+                                >
+                                    <i className="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button
+                                    title="Duplicar Treino"
+                                    onClick={(e) => { e.stopPropagation(); duplicateTraining(training.id!); }}
+                                    className="w-10 h-10 rounded-xl bg-zinc-600 border border-zinc-800 flex items-center justify-center hover:text-white hover:border-zinc-500"
+                                >
+                                    <i className="fa-solid fa-copy"></i>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
 
-                {trainings?.length === 0 && (
-                    <div className="text-center p-10 opacity-50">
-                        <i className="fa-solid fa-folder-open text-4xl mb-4"></i>
-                        <p>Nenhum treino criado.</p>
-                    </div>
-                )}
-            </div>
+                    {trainings?.length === 0 && (
+                        <div className="text-center p-10 opacity-50">
+                            <i className="fa-solid fa-folder-open text-4xl mb-4"></i>
+                            <p>Nenhum treino criado.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* <SettingsButton moved to Header> */}
         </div>

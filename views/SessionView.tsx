@@ -80,7 +80,7 @@ const SessionView: React.FC = () => {
                 `Série ${currentSetIndex + 1} | Descanso: ${timeLeft}s`,
                 !isActive,
                 1001,
-                'neopulse_realtime'
+                'neopulse_ticker'
             );
 
             if (timeLeft > 0) {
@@ -95,7 +95,7 @@ const SessionView: React.FC = () => {
                 `Cronômetro: ${stopwatchTime}s`,
                 !isActive,
                 1001,
-                'neopulse_realtime'
+                'neopulse_ticker'
             );
             interval = setInterval(() => setStopwatchTime(prev => prev + 1), 1000);
         } else if (!isActive && currentExercise && hasRestored) {
@@ -104,7 +104,7 @@ const SessionView: React.FC = () => {
                 isStopwatch ? `Cronômetro: ${stopwatchTime}s` : `Série ${currentSetIndex + 1} | Pausado em ${timeLeft}s`,
                 true,
                 1001,
-                'neopulse_realtime'
+                'neopulse_ticker'
             );
         }
 
@@ -310,7 +310,7 @@ const SessionView: React.FC = () => {
             }
         };
 
-        const interval = setInterval(checkCommands, 1000);
+        const interval = setInterval(checkCommands, 500);
         return () => clearInterval(interval);
     }, [currentExercise, currentSetIndex, isStopwatch]);
 

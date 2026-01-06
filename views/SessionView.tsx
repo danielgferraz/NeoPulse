@@ -6,6 +6,7 @@ import Timer from '../components/Timer';
 import { NotificationService } from '../services/notificationService';
 import { useTheme } from '../contexts/ThemeContext';
 import { WidgetService } from '../services/widgetService';
+import { Preferences } from '@capacitor/preferences';
 
 const SessionView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -137,6 +138,7 @@ const SessionView: React.FC = () => {
         await NotificationService.showStickyNotification(
             "Tempo Esgotado! 🔔",
             `Prepare-se para: ${currentExercise?.name}`,
+            false, // isPaused
             2002 // Alert ID
         );
     };

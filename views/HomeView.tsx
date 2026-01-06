@@ -128,8 +128,63 @@ const HomeView: React.FC = () => {
         return history?.filter(h => new Date(h.timestamp).toDateString() === date.toDateString()) || [];
     };
 
+    const [showSelection, setShowSelection] = useState(false);
+
+    const startWorkout = () => {
+        if (trainings && trainings.length > 0) {
+            setShowSelection(true);
+        } else {
+            addTraining();
+        }
+    };
+
     return (
         <div className="w-full max-w-md flex flex-col gap-4 pb-20 animate-in fade-in">
+            {/* Start Workout Primary Action */}
+            <div className="px-2">
+                <button
+                    onClick={startWorkout}
+                    style={{
+                        backgroundColor: theme.primary,
+                        boxShadow: `0 0 30px ${theme.primary}50`
+                    }}
+                    className="w-full py-6 rounded-[2rem] flex items-center justify-center gap-3 active:scale-[0.98] transition-all transform group"
+                >
+                    <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
+                        <i className={`fa-solid fa-play text-xs`} style={{ color: theme.primary }}></i>
+                    </div>
+                    <span className="text-xl font-black uppercase italic tracking-tighter text-black">Iniciar Treino</span>
+                </button>
+            </div>
+
+            {/* Selection Modal (Simplified Overlay) */}
+            {showSelection && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end animate-in fade-in duration-300">
+                    <div className="w-full bg-zinc-900 rounded-t-[3rem] p-8 border-t border-zinc-800 animate-in slide-in-from-bottom-10">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-black uppercase italic text-white leading-none">Qual Treino?</h3>
+                            <button onClick={() => setShowSelection(false)} className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center">
+                                <i className="fa-solid fa-times"></i>
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 max-h-[50vh] overflow-y-auto">
+                            {trainings?.map((t) => (
+                                <button
+                                    key={t.id}
+                                    onClick={() => {
+                                        setShowSelection(false);
+                                        navigate(`/session/${t.id}`);
+                                    }}
+                                    className="p-5 bg-zinc-950 border border-zinc-800 rounded-2xl text-left hover:border-zinc-500 transition-colors"
+                                >
+                                    <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest leading-none">Selecione o Treino</span>
+                                    <p className="text-lg font-black uppercase italic text-white mt-1">{t.name}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Calendar */}
             <div className="bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800">
                 <div className="flex justify-between items-center mb-3">

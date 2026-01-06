@@ -145,29 +145,29 @@ const SessionView: React.FC = () => {
     const finishExercise = async () => {
         if (!currentExercise || !training) return;
 
-        await db.history.add({
-            exerciseName: currentExercise.name,
-            sets: currentSetIndex + 1,
-            trainingName: training.name,
-            timestamp: Date.now()
-        });
-
-        // Sync widget (approximate count for this month)
-        const recentHistory = await db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray();
-        const weightLogs = await db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray();
-
-        // This is a bit heavy but ensures the widget is fresh after a workout
-        WidgetService.sync({
-            count: recentHistory.length,
-            goal: parseInt(localStorage.getItem('neopulse_monthly_goal') || '12'),
-            weight: weightLogs[0]?.weight?.toString() || '---'
-        });
-
         if (currentExerciseIndex < (exercises?.length || 0) - 1) {
             setCurrentExerciseIndex(prev => prev + 1);
             setCurrentSetIndex(0);
             setIsActive(false);
         } else {
+            // End of entire training session
+            await db.history.add({
+                exerciseName: "Sessão Completa",
+                sets: exercises.length, // total exercises in this session
+                trainingName: training.name,
+                timestamp: Date.now()
+            });
+
+            // Sync stats widget (Monthly count)
+            const recentHistory = await db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray();
+            const weightLogs = await db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray();
+
+            WidgetService.sync({
+                count: recentHistory.length,
+                goal: parseInt(localStorage.getItem('neopulse_monthly_goal') || '12'),
+                weight: weightLogs[0]?.weight?.toString() || '---'
+            });
+
             navigate(`/summary?tid=${trainingId}&dur=00:00`);
         }
     };

@@ -18,6 +18,11 @@ public class NeoPulseWidget extends AppWidgetProvider {
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.neo_pulse_widget);
 
+        // Default values
+        views.setTextViewText(R.id.widget_monthly_count, "0 / -- TREINOS");
+        views.setProgressBar(R.id.widget_progress, 100, 0, false);
+        views.setTextViewText(R.id.widget_last_weight, "PESO: --- KG");
+
         if (widgetDataStr != null) {
             try {
                 JSONObject data = new JSONObject(widgetDataStr);
@@ -29,8 +34,10 @@ public class NeoPulseWidget extends AppWidgetProvider {
                 views.setProgressBar(R.id.widget_progress, goal, count, false);
                 views.setTextViewText(R.id.widget_last_weight, "PESO: " + weight + " KG");
             } catch (Exception e) {
-                e.printStackTrace();
+                android.util.Log.e("NeoPulseWidget", "Error parsing widget data", e);
             }
+        } else {
+            android.util.Log.d("NeoPulseWidget", "No widget data found in SharedPreferences");
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views);

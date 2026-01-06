@@ -1,7 +1,7 @@
 {
   "name": "neopulse---timer-de-academia-minimalista",
   "private": true,
-  "version": "0.0.24",
+  "version": "0.0.21",
   "type": "module",
   "scripts": {
     "dev": "vite",

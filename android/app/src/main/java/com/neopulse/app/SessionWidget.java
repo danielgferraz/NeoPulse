@@ -87,7 +87,7 @@ public class SessionWidget extends AppWidgetProvider {
             else if (action.equals(ACTION_RESET)) command = "reset";
             else if (action.equals(ACTION_NEXT)) command = "next";
 
-            prefs.edit().putString("neopulse_widget_command", command).apply();
+            prefs.edit().putString("neopulse_widget_command", command).commit();
 
             // Notify WidgetProvider to refresh UI if needed, but the PWA polling is the main mechanism.
             // We refresh the widget anyway to show feedback.
@@ -101,6 +101,7 @@ public class SessionWidget extends AppWidgetProvider {
     private static PendingIntent getPendingSelfIntent(Context context, String action) {
         Intent intent = new Intent(context, SessionWidget.class);
         intent.setAction(action);
+        intent.setPackage(context.getPackageName()); // Ensure targeted delivery
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 }

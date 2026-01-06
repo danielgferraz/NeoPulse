@@ -23,7 +23,7 @@ export const NotificationService = {
             });
 
             await LocalNotifications.createChannel({
-                id: 'neopulse_silent',
+                id: 'neopulse_realtime',
                 name: 'Silent Updates',
                 importance: 2, // Low - Stop flashing/beeping on update
                 description: 'Silent Timer Updates',
@@ -59,7 +59,7 @@ export const NotificationService = {
         }
     },
 
-    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_silent') {
+    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_realtime') {
         if (Capacitor.getPlatform() === 'web') return; // Desktop doesn't support ongoing sticky notifications easily
 
         await LocalNotifications.schedule({

@@ -45,6 +45,9 @@
         <receiver android:name=".SessionWidget" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.neopulse.app.ACTION_PAUSE" />
+                <action android:name="com.neopulse.app.ACTION_RESET" />
+                <action android:name="com.neopulse.app.ACTION_NEXT" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

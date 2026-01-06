@@ -204,10 +204,38 @@ const SessionView: React.FC = () => {
         }
     };
 
-    // Clear session widget on unmount
+    // Clear session widget and commands on unmount
     useEffect(() => {
-        return () => { WidgetService.syncSession(null); };
+        return () => {
+            WidgetService.syncSession(null);
+            Preferences.remove({ key: 'neopulse_widget_command' });
+        };
     }, []);
+
+    // Widget Command Polling
+    useEffect(() => {
+        const checkCommands = async () => {
+            const res = await Preferences.get({ key: 'neopulse_widget_command' });
+            if (res.value) {
+                const cmd = res.value;
+                await Preferences.remove({ key: 'neopulse_widget_command' });
+
+                console.log("Widget Command Received:", cmd);
+                if (cmd === 'pause') {
+                    setIsActive(prev => !prev);
+                } else if (cmd === 'reset') {
+                    setIsActive(false);
+                    if (isStopwatch) setStopwatchTime(0);
+                    else if (currentExercise) setTimeLeft(currentExercise.restTimes[currentSetIndex]);
+                } else if (cmd === 'next') {
+                    handleSetComplete();
+                }
+            }
+        };
+
+        const interval = setInterval(checkCommands, 1000);
+        return () => clearInterval(interval);
+    }, [currentExercise, currentSetIndex, isStopwatch]);
 
     if (!exercises || exercises.length === 0) {
         return (

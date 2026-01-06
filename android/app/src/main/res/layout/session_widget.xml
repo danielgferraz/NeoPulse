@@ -9,14 +9,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:padding="12dp"
-        android:background="@android:color/black">
+        android:padding="8dp"
+        android:background="#000000">
 
         <TextView
             android:id="@+id/session_exercise_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="PRONTO PARA TREINAR"
+            android:text="NEOPULSE"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:textStyle="bold"
@@ -27,7 +27,7 @@
             android:id="@+id/session_sets_info"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="AGUARDANDO SÉRIE"
+            android:text="SEM SESSÃO"
             android:textColor="#00FF41"
             android:textSize="10sp"
             android:textStyle="bold"
@@ -37,9 +37,9 @@
             android:id="@+id/session_timer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#00FF41"
-            android:textSize="32sp"
+            android:layout_marginVertical="2dp"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
             android:textStyle="bold"
             android:gravity="center_horizontal" />
 
@@ -47,13 +47,60 @@
             android:id="@+id/session_next_exercise"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:text="PRÓXIMO: ---"
             android:textColor="#888888"
-            android:textSize="10sp"
+            android:textSize="9sp"
             android:textStyle="italic"
             android:maxLines="1"
             android:ellipsize="end" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/session_btn_reset"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginRight="4dp"
+                android:background="@android:color/darker_gray"
+                android:text="ZERAR"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:gravity="center"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/session_btn_pause"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="2dp"
+                android:background="#00FF41"
+                android:text="PAUSAR"
+                android:textColor="#000000"
+                android:textSize="10sp"
+                android:gravity="center"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/session_btn_next"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginLeft="4dp"
+                android:background="#222222"
+                android:text="FEITO"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:gravity="center"
+                android:textStyle="bold" />
+
+        </LinearLayout>
 
     </LinearLayout>
 </RelativeLayout>

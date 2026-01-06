@@ -8,6 +8,7 @@ import SummaryView from './views/SummaryView';
 import SettingsView from './views/SettingsView';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { ThemeProvider } from './contexts/ThemeContext';
+import WidgetPreview from './components/preview/WidgetPreview';
 
 const App: React.FC = () => {
   const [isDbReady, setIsDbReady] = useState(false);
@@ -61,6 +62,7 @@ const App: React.FC = () => {
               <Route path="/session/:id" element={<SessionView />} />
               <Route path="/summary" element={<SummaryView />} />
               <Route path="/settings" element={<SettingsView />} />
+              <Route path="/preview" element={<WidgetPreview />} />
             </Routes>
           </div>
 

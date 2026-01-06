@@ -159,11 +159,17 @@ const SettingsView: React.FC = () => {
                 {/* System Info */}
                 <section>
                     <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Sistema</h2>
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4">
-                        <UpdateChecker />
-                        <div className="mt-4 text-[10px] text-zinc-600 font-mono text-center">
-                            NeoPulse v0.0.12<br />
-                            Offline-First PWA
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-2 flex flex-col gap-1">
+                        <button onClick={() => navigate('/preview')} className="w-full text-left p-4 rounded-xl hover:bg-zinc-800 flex items-center gap-3 text-zinc-300 transition-colors">
+                            <i className="fa-solid fa-eye text-[#00FF41]"></i>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold">Widget Preview</span>
+                                <span className="text-[10px] text-zinc-500">Testar visual dos widgets no browser</span>
+                            </div>
+                        </button>
+                        <div className="h-px bg-zinc-800 mx-4"></div>
+                        <div className="p-4">
+                            <UpdateChecker />
                         </div>
                     </div>
                 </section>

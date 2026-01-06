@@ -43,7 +43,7 @@ export const NotificationService = {
         });
     },
 
-    async showStickyNotification(title: string, body: string, id = 1001) {
+    async showStickyNotification(title: string, body: string, id = 1001, channelId = 'neopulse_silent') {
         await LocalNotifications.schedule({
             notifications: [{
                 id,
@@ -51,7 +51,7 @@ export const NotificationService = {
                 body,
                 ongoing: true, // Permanent
                 autoCancel: false,
-                channelId: CHANNEL_ID,
+                channelId,
                 smallIcon: 'ic_stat_icon_config_sample', // Android default
                 actionTypeId: 'TIMER_ACTIONS'
             }]

@@ -24,4 +24,4 @@ dist-ssr
 *.sw?
 *.jks
 keystore_final.txt
-neopulse
+/neopulse

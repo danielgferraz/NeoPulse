@@ -2,14 +2,44 @@ import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../services/db';
 import { useNavigate } from 'react-router-dom';
-import UpdateChecker from '../components/UpdateChecker';
 import { useTheme } from '../contexts/ThemeContext';
+import { WidgetService } from '../services/widgetService';
 
 const HomeView: React.FC = () => {
     const trainings = useLiveQuery(() => db.trainings.orderBy('order').toArray());
     const history = useLiveQuery(() => db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray());
+    const weightLogs = useLiveQuery(() => db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray());
     const navigate = useNavigate();
-    const { theme } = useTheme();
+    const { theme, monthlyGoal } = useTheme();
+
+    const [weightInput, setWeightInput] = useState('');
+    const [showWeightInput, setShowWeightInput] = useState(false);
+
+    // Widget Sync
+    React.useEffect(() => {
+        if (history && monthlyGoal !== undefined) {
+            WidgetService.sync({
+                count: history.length,
+                goal: monthlyGoal,
+                weight: weightLogs?.[0]?.weight?.toString() || '---'
+            });
+        }
+    }, [history, monthlyGoal, weightLogs]);
+
+    const logWeight = async () => {
+        const val = parseFloat(weightInput.replace(',', '.'));
+        if (!isNaN(val) && val > 0) {
+            await db.weightLogs.add({ weight: val, timestamp: Date.now() });
+            setWeightInput('');
+            setShowWeightInput(false);
+            // Trigger manual sync for widget
+            WidgetService.sync({
+                count: history?.length || 0,
+                goal: monthlyGoal,
+                weight: val.toString()
+            });
+        }
+    };
 
     const addTraining = async () => {
         const name = prompt("Nome do Treino (ex: Treino C - Pernas):");
@@ -106,6 +136,26 @@ const HomeView: React.FC = () => {
                     <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500">Frequência (14 dias)</span>
                     <span className="text-[10px] font-black text-white">{history?.length || 0} treinos mês</span>
                 </div>
+
+                {/* Monthly Goal Progress */}
+                <div className="flex items-center gap-4 mb-5 p-3 bg-black/40 rounded-2xl border border-zinc-800/50">
+                    <div className="relative w-12 h-12 flex items-center justify-center">
+                        <svg className="w-full h-full -rotate-90">
+                            <circle cx="24" cy="24" r="20" fill="transparent" stroke="currentColor" strokeWidth="4" className="text-zinc-800" />
+                            <circle cx="24" cy="24" r="20" fill="transparent" stroke="currentColor" strokeWidth="4"
+                                strokeDasharray={126}
+                                strokeDashoffset={126 - (126 * Math.min(100, ((history?.length || 0) / monthlyGoal) * 100)) / 100}
+                                style={{ color: theme.primary }}
+                                className="transition-all duration-1000" />
+                        </svg>
+                        <span className="absolute text-[10px] font-black text-white">{Math.round(((history?.length || 0) / monthlyGoal) * 100)}%</span>
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Meta Mensal</p>
+                        <p className="text-xs text-zinc-300 font-bold">{history?.length || 0} de {monthlyGoal} treinos</p>
+                    </div>
+                </div>
+
                 <div className="flex justify-between">
                     {calendarDays.map((date, i) => {
                         const didTrain = hasTrainingOnDate(date);
@@ -156,6 +206,7 @@ const HomeView: React.FC = () => {
             <div className="flex justify-between items-center mb-4 px-2">
                 <h2 className="text-xl font-black uppercase italic tracking-tighter" style={{ color: theme.primary }}>Meus Treinos</h2>
                 <button
+                    title="Adicionar Treino"
                     onClick={addTraining}
                     style={{ backgroundColor: theme.primary, boxShadow: `0 0 15px ${theme.primary}40` }}
                     className="text-black w-8 h-8 rounded-lg flex items-center justify-center font-bold"
@@ -164,7 +215,39 @@ const HomeView: React.FC = () => {
                 </button>
             </div>
 
-            <UpdateChecker />
+
+            {/* Weight Logging Card */}
+            <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl mb-1">
+                <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center gap-2">
+                        <i className="fa-solid fa-scale-balanced text-zinc-600"></i>
+                        <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500">Peso Corporal</span>
+                    </div>
+                    {weightLogs?.[0] && (
+                        <span className="text-xl font-black italic text-white">{weightLogs[0].weight} <span className="text-[10px] not-italic text-zinc-500 uppercase">Kg</span></span>
+                    )}
+                </div>
+
+                {showWeightInput ? (
+                    <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2">
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            className="flex-1 bg-black/40 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:border-[#00FF41] outline-none"
+                            placeholder="Ex: 85.5"
+                            value={weightInput}
+                            onChange={(e) => setWeightInput(e.target.value)}
+                            autoFocus
+                        />
+                        <button onClick={logWeight} style={{ backgroundColor: theme.primary }} className="px-4 rounded-xl text-black font-black text-[10px] uppercase">Salvar</button>
+                        <button onClick={() => setShowWeightInput(false)} className="px-3 rounded-xl bg-zinc-800 text-zinc-500 text-xs"><i className="fa-solid fa-times"></i></button>
+                    </div>
+                ) : (
+                    <button onClick={() => setShowWeightInput(true)} className="mt-2 text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-colors">
+                        + Registrar Peso Hoje
+                    </button>
+                )}
+            </div>
 
             <div className="grid grid-cols-1 gap-3">
                 {trainings?.map((training) => (
@@ -177,6 +260,7 @@ const HomeView: React.FC = () => {
 
                         <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 ml-2">
                             <button
+                                title="Editar Treino"
                                 onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }}
                                 className="w-10 h-10 rounded-xl bg-zinc-950 text-zinc-400 border border-zinc-800 flex items-center justify-center hover:text-white"
                                 style={{ borderColor: `${theme.primary}20` }}
@@ -184,6 +268,7 @@ const HomeView: React.FC = () => {
                                 <i className="fa-solid fa-pen-to-square"></i>
                             </button>
                             <button
+                                title="Duplicar Treino"
                                 onClick={(e) => { e.stopPropagation(); duplicateTraining(training.id!); }}
                                 className="w-10 h-10 rounded-xl bg-zinc-950 text-zinc-600 border border-zinc-800 flex items-center justify-center hover:text-white hover:border-zinc-500"
                             >

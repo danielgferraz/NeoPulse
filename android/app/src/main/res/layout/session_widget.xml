@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp"
+    android:background="@android:color/black">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="@android:color/black">
+
+        <TextView
+            android:id="@+id/session_exercise_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PRONTO PARA TREINAR"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/session_sets_info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AGUARDANDO SÉRIE"
+            android:textColor="#00FF41"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1" />
+
+        <Chronometer
+            android:id="@+id/session_timer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#00FF41"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            android:gravity="center_horizontal" />
+
+        <TextView
+            android:id="@+id/session_next_exercise"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="PRÓXIMO: ---"
+            android:textColor="#888888"
+            android:textSize="10sp"
+            android:textStyle="italic"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+    </LinearLayout>
+</RelativeLayout>

@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Icons } from '../constants';
+import { useHaptic } from '../hooks/useHaptic';
 
 interface TimerProps {
   timeLeft: number;
@@ -10,9 +11,10 @@ interface TimerProps {
   onReset: () => void;
   onAdjust: (delta: number) => void;
   soundMode?: 'beep' | 'voice' | 'silent';
+  hapticPattern?: 'heavy' | 'medium' | 'light' | 'dual' | 'triple';
 }
 
-const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, onReset, onAdjust, soundMode = 'beep' }) => {
+const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, onReset, onAdjust, soundMode = 'beep', hapticPattern = 'medium' }) => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastBeepedTime = useRef<number>(-1);
 
@@ -62,6 +64,8 @@ const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, o
     }
   };
 
+  const { triggerCustomPattern } = useHaptic();
+
   // Feedback sonoro e vibração controlados pelo componente visual
   useEffect(() => {
     if (isActive) {
@@ -72,11 +76,11 @@ const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, o
       }
       if (timeLeft === 0 && lastBeepedTime.current !== 0) {
         playAlarm();
-        if (window.navigator.vibrate) window.navigator.vibrate([400, 200, 400]);
+        triggerCustomPattern(hapticPattern);
         lastBeepedTime.current = 0;
       }
     }
-  }, [timeLeft, isActive, soundMode]);
+  }, [timeLeft, isActive, soundMode, hapticPattern, triggerCustomPattern]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);

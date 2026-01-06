@@ -24,10 +24,17 @@ export interface HistoryItem {
     trainingName: string;
 }
 
+export interface WeightLog {
+    id?: number;
+    weight: number;
+    timestamp: number;
+}
+
 class NeoPulseDB extends Dexie {
     trainings!: Table<Training>;
     exercises!: Table<Exercise>;
     history!: Table<HistoryItem>;
+    weightLogs!: Table<WeightLog>;
 
     constructor() {
         super('NeoPulseDB');
@@ -35,6 +42,9 @@ class NeoPulseDB extends Dexie {
             trainings: '++id, order',
             exercises: '++id, trainingId, order',
             history: '++id, timestamp'
+        });
+        this.version(2).stores({
+            weightLogs: '++id, timestamp'
         });
     }
 

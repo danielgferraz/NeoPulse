@@ -6,7 +6,7 @@ import UpdateChecker from '../components/UpdateChecker';
 
 const SettingsView: React.FC = () => {
     const navigate = useNavigate();
-    const { theme, setTheme, soundMode, setSoundMode } = useTheme();
+    const { theme, setTheme, soundMode, setSoundMode, monthlyGoal, setMonthlyGoal, hapticPattern, setHapticPattern } = useTheme();
 
     // Reusing logic from HomeView, ideally move to a service/hook if shared, but for now simple copy
     const exportData = async () => {
@@ -78,6 +78,40 @@ const SettingsView: React.FC = () => {
                             </button>
                         ))}
                     </div>
+                </section>
+
+                {/* Monthly Goal Setting */}
+                <section>
+                    <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Meta Mensal</h2>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold text-white">Treinos por Mês</span>
+                            <span className="text-[10px] text-zinc-500 italic">Quantos dias você pretende treinar</span>
+                        </div>
+                        <div className="flex items-center gap-3 bg-black rounded-xl p-1 border border-zinc-800">
+                            <button onClick={() => setMonthlyGoal(Math.max(1, monthlyGoal - 1))} className="w-8 h-8 rounded-lg bg-zinc-900 text-zinc-400 hover:text-white pb-1">-</button>
+                            <span className="w-8 text-center font-black text-white">{monthlyGoal}</span>
+                            <button onClick={() => setMonthlyGoal(monthlyGoal + 1)} className="w-8 h-8 rounded-lg bg-zinc-900 text-zinc-400 hover:text-white pb-1">+</button>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Haptic Patterns */}
+                <section>
+                    <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Vibração (Haptics)</h2>
+                    <div className="flex flex-wrap gap-2 bg-zinc-900/50 border border-zinc-800 rounded-2xl p-2">
+                        {(['light', 'medium', 'heavy', 'dual', 'triple'] as const).map((pattern) => (
+                            <button
+                                key={pattern}
+                                onClick={() => setHapticPattern(pattern)}
+                                className={`flex-1 min-w-[30%] py-2 rounded-xl text-[9px] font-black uppercase tracking-tight transition-all border ${hapticPattern === pattern ? 'bg-zinc-800 border-[#00FF41] text-white' : 'border-transparent text-zinc-600 hover:text-zinc-400'}`}
+                                style={{ color: hapticPattern === pattern ? theme.primary : undefined }}
+                            >
+                                {pattern}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-[9px] text-zinc-600 mt-2 ml-1 italic">* O padrão de vibração será usado no fim do descanso.</p>
                 </section>
 
                 {/* Audio Settings */}

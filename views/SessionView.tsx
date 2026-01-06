@@ -5,12 +5,13 @@ import { db } from '../services/db';
 import Timer from '../components/Timer';
 import { NotificationService } from '../services/notificationService';
 import { useTheme } from '../contexts/ThemeContext';
+import { WidgetService } from '../services/widgetService';
 
 const SessionView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const trainingId = parseInt(id || '0');
     const navigate = useNavigate();
-    const { theme, soundMode } = useTheme();
+    const { theme, soundMode, hapticPattern } = useTheme();
 
     const training = useLiveQuery(() => db.trainings.get(trainingId), [trainingId]);
     const exercises = useLiveQuery(() =>
@@ -22,6 +23,8 @@ const SessionView: React.FC = () => {
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
     const [isActive, setIsActive] = useState(false);
     const [timeLeft, setTimeLeft] = useState(90);
+    const [isStopwatch, setIsStopwatch] = useState(false);
+    const [stopwatchTime, setStopwatchTime] = useState(0);
 
     const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
 
@@ -47,41 +50,55 @@ const SessionView: React.FC = () => {
         return () => window.removeEventListener('NEOPULSE_NEXT_SET', handler);
     });
 
-    // Timer Logic & Notification Updates
+    // Timer & Stopwatch Logic
     useEffect(() => {
         let interval: any = null;
 
-        if (isActive && currentExercise) {
+        if (isActive && !isStopwatch) {
             NotificationService.showStickyNotification(
-                `Treino em Andamento: ${currentExercise.name}`,
+                `Treino: ${currentExercise?.name}`,
                 `Série ${currentSetIndex + 1} | Descanso: ${timeLeft}s`,
-                1001 // Ongoing ID
+                1001,
+                'neopulse_silent'
             );
+
+            if (timeLeft > 0) {
+                interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+            } else {
+                setIsActive(false);
+                scheduleAlert();
+            }
+        } else if (isActive && isStopwatch) {
+            NotificationService.showStickyNotification(
+                `Treino: ${currentExercise?.name}`,
+                `Cronômetro: ${stopwatchTime}s`,
+                1001,
+                'neopulse_silent'
+            );
+            interval = setInterval(() => setStopwatchTime(prev => prev + 1), 1000);
         }
 
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft(prev => prev - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && isActive) {
-            setIsActive(false);
-            scheduleAlert();
-        }
-
-        if (!isActive) {
-            NotificationService.cancel(1001);
-        }
+        if (!isActive) NotificationService.cancel(1001);
 
         return () => clearInterval(interval);
-    }, [isActive, timeLeft, currentExercise, currentSetIndex]);
+    }, [isActive, timeLeft, stopwatchTime, isStopwatch, currentExercise, currentSetIndex]);
 
     // Reset timer whenever exercise/set changes
     useEffect(() => {
         if (currentExercise) {
             const duration = currentExercise.restTimes[Math.min(currentSetIndex, currentExercise.restTimes.length - 1)] || 90;
             setTimeLeft(duration);
+
+            // Sync widget (Initial state for this exercise/set)
+            WidgetService.syncSession({
+                exercise: currentExercise.name,
+                next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                currentSet: currentSetIndex + 1,
+                totalSets: currentExercise.restTimes.length,
+                timerEnd: null
+            });
         }
-    }, [currentExercise, currentSetIndex]);
+    }, [currentExercise, currentSetIndex, exercises, currentExerciseIndex]);
 
 
     const scheduleAlert = async () => {
@@ -99,10 +116,28 @@ const SessionView: React.FC = () => {
             if (currentSetIndex < currentExercise.restTimes.length - 1) {
                 const nextSet = currentSetIndex + 1;
                 setCurrentSetIndex(nextSet);
-                setTimeLeft(currentExercise.restTimes[nextSet]);
+                const nextDuration = currentExercise.restTimes[nextSet];
+                setTimeLeft(nextDuration);
                 setIsActive(true);
+
+                // Sync widget with Timer
+                WidgetService.syncSession({
+                    exercise: currentExercise.name,
+                    next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                    currentSet: nextSet + 1,
+                    totalSets: currentExercise.restTimes.length,
+                    timerEnd: Date.now() + (nextDuration * 1000)
+                });
             } else {
                 setIsActive(false);
+                // Clear widget timer for last set
+                WidgetService.syncSession({
+                    exercise: currentExercise.name,
+                    next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                    currentSet: currentSetIndex + 1,
+                    totalSets: currentExercise.restTimes.length,
+                    timerEnd: null
+                });
             }
         }
     };
@@ -117,6 +152,17 @@ const SessionView: React.FC = () => {
             timestamp: Date.now()
         });
 
+        // Sync widget (approximate count for this month)
+        const recentHistory = await db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray();
+        const weightLogs = await db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray();
+
+        // This is a bit heavy but ensures the widget is fresh after a workout
+        WidgetService.sync({
+            count: recentHistory.length,
+            goal: parseInt(localStorage.getItem('neopulse_monthly_goal') || '12'),
+            weight: weightLogs[0]?.weight?.toString() || '---'
+        });
+
         if (currentExerciseIndex < (exercises?.length || 0) - 1) {
             setCurrentExerciseIndex(prev => prev + 1);
             setCurrentSetIndex(0);
@@ -125,6 +171,11 @@ const SessionView: React.FC = () => {
             navigate(`/summary?tid=${trainingId}&dur=00:00`);
         }
     };
+
+    // Clear session widget on unmount
+    useEffect(() => {
+        return () => { WidgetService.syncSession(null); };
+    }, []);
 
     if (!exercises || exercises.length === 0) {
         return (
@@ -173,16 +224,35 @@ const SessionView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Timer */}
+            {/* Timer / Stopwatch Toggle */}
+            <div className="flex justify-center mb-4">
+                <button
+                    onClick={() => { setIsActive(false); setIsStopwatch(!isStopwatch); setStopwatchTime(0); }}
+                    className="px-4 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all"
+                >
+                    <i className={`fa-solid ${isStopwatch ? 'fa-hourglass-half' : 'fa-stopwatch'} mr-2`}></i>
+                    Mudar para {isStopwatch ? 'Descanso Fixo' : 'Cronômetro Livre'}
+                </button>
+            </div>
+
+            {/* Timer Display */}
             <div className="flex-1 flex items-center justify-center">
                 <Timer
-                    timeLeft={timeLeft}
+                    timeLeft={isStopwatch ? stopwatchTime : timeLeft}
                     isActive={isActive}
-                    duration={currentExercise.restTimes[currentSetIndex] || 90}
+                    duration={isStopwatch ? 0 : (currentExercise.restTimes[currentSetIndex] || 90)}
                     onToggle={() => setIsActive(!isActive)}
-                    onReset={() => { setIsActive(false); setTimeLeft(currentExercise.restTimes[currentSetIndex]); }}
-                    onAdjust={(delta) => setTimeLeft(prev => Math.max(1, prev + delta))}
+                    onReset={() => {
+                        setIsActive(false);
+                        if (isStopwatch) setStopwatchTime(0);
+                        else setTimeLeft(currentExercise.restTimes[currentSetIndex]);
+                    }}
+                    onAdjust={(delta) => {
+                        if (isStopwatch) setStopwatchTime(prev => Math.max(0, prev + delta));
+                        else setTimeLeft(prev => Math.max(1, prev + delta));
+                    }}
                     soundMode={soundMode}
+                    hapticPattern={hapticPattern}
                 />
             </div>
 

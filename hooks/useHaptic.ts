@@ -28,5 +28,24 @@ export const useHaptic = () => {
         }
     };
 
-    return { triggerImpact, triggerNotification, triggerSelection };
+    const triggerCustomPattern = async (pattern: 'heavy' | 'medium' | 'light' | 'dual' | 'triple') => {
+        try {
+            switch (pattern) {
+                case 'heavy': await Haptics.impact({ style: ImpactStyle.Heavy }); break;
+                case 'medium': await Haptics.impact({ style: ImpactStyle.Medium }); break;
+                case 'light': await Haptics.impact({ style: ImpactStyle.Light }); break;
+                case 'dual':
+                    await Haptics.notification({ type: NotificationType.Warning });
+                    break;
+                case 'triple':
+                    await Haptics.notification({ type: NotificationType.Error });
+                    break;
+            }
+        } catch {
+            const fb = { heavy: 100, medium: 40, light: 20, dual: [50, 50, 50], triple: [50, 30, 50, 30, 50] };
+            if (navigator.vibrate) navigator.vibrate(fb[pattern] as any);
+        }
+    };
+
+    return { triggerImpact, triggerNotification, triggerSelection, triggerCustomPattern };
 };

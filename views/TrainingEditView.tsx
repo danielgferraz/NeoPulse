@@ -32,6 +32,39 @@ const TrainingEditView: React.FC = () => {
         }
     };
 
+    const duplicateExercise = async (ex: any) => {
+        await db.exercises.add({
+            ...ex,
+            id: undefined,
+            order: (exercises?.length || 0),
+            name: `${ex.name} (Cópia)`
+        });
+    };
+
+    const calculate1RM = (weight: number, reps: number) => {
+        if (!weight || !reps) return 0;
+        return Math.round(weight * (1 + reps / 30)); // Brzycki
+    };
+
+    const getPlates = (totalWeight: number) => {
+        const barWeight = 20;
+        let sideWeight = (totalWeight - barWeight) / 2;
+        const plates = [25, 20, 15, 10, 5, 2.5, 1.25, 0.5];
+        const result: number[] = [];
+
+        plates.forEach(p => {
+            while (sideWeight >= p) {
+                result.push(p);
+                sideWeight -= p;
+            }
+        });
+        return result;
+    };
+
+    const [calcState, setCalcState] = React.useState<{ id: number, type: '1rm' | 'plate' } | null>(null);
+    const [weightVal, setWeightVal] = React.useState<number>(0);
+    const [repsVal, setRepsVal] = React.useState<number>(0);
+
     const deleteTraining = async () => {
         if (confirm('Deletar PASTA de treino inteira?')) {
             await db.exercises.where('trainingId').equals(trainingId).delete();
@@ -48,9 +81,14 @@ const TrainingEditView: React.FC = () => {
                 <button title="Voltar" onClick={() => navigate('/')} className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
                     <i className="fa-solid fa-arrow-left"></i>
                 </button>
-                <div className="text-right">
-                    <span className="text-[10px] text-[#00FF41] uppercase font-black tracking-widest">Editando</span>
-                    <h1 className="text-xl font-black italic uppercase text-white">{training.name}</h1>
+                <div className="text-right flex-1 ml-4">
+                    <span className="text-[10px] text-[#00FF41] uppercase font-black tracking-widest">Editando Pasta</span>
+                    <input
+                        className="w-full bg-transparent border-none text-xl font-black italic uppercase text-white text-right focus:outline-none placeholder:text-zinc-700"
+                        value={training.name}
+                        onChange={(e) => db.trainings.update(trainingId, { name: e.target.value })}
+                        placeholder="NOME DA PASTA"
+                    />
                 </div>
             </div>
 
@@ -109,7 +147,50 @@ const TrainingEditView: React.FC = () => {
                             <button title="Excluir" onClick={() => deleteExercise(ex.id!)} className="w-8 h-8 rounded-lg hover:bg-red-950/30 text-zinc-700 hover:text-red-500 transition-colors">
                                 <i className="fa-solid fa-trash"></i>
                             </button>
+                            <button title="Duplicar Exercício" onClick={() => duplicateExercise(ex)} className="w-8 h-8 rounded-lg hover:bg-zinc-800 text-zinc-700 hover:text-white transition-colors">
+                                <i className="fa-solid fa-copy"></i>
+                            </button>
                         </div>
+
+                        {/* Tools Section */}
+                        <div className="flex gap-2 pl-8 mb-3 overflow-x-auto pb-1 scrollbar-hide">
+                            <button
+                                onClick={() => setCalcState(calcState?.id === ex.id && calcState.type === '1rm' ? null : { id: ex.id!, type: '1rm' })}
+                                className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${calcState?.id === ex.id && calcState.type === '1rm' ? 'bg-[#00FF41] text-black border-[#00FF41]' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>
+                                <i className="fa-solid fa-calculator mr-1"></i> Calc 1RM
+                            </button>
+                            <button
+                                onClick={() => setCalcState(calcState?.id === ex.id && calcState.type === 'plate' ? null : { id: ex.id!, type: 'plate' })}
+                                className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${calcState?.id === ex.id && calcState.type === 'plate' ? 'bg-[#00FF41] text-black border-[#00FF41]' : 'border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}>
+                                <i className="fa-solid fa-weight-hanging mr-1"></i> Anilhas
+                            </button>
+                        </div>
+
+                        {/* Tool Display */}
+                        {calcState?.id === ex.id && (
+                            <div className="mx-8 mb-4 p-3 bg-black/40 rounded-2xl border border-zinc-800 animate-in slide-in-from-top-1">
+                                {calcState.type === '1rm' ? (
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex gap-2">
+                                            <input type="number" placeholder="Peso" className="w-full bg-zinc-900 rounded-lg px-2 py-1 text-xs outline-none" onChange={e => setWeightVal(Number(e.target.value))} />
+                                            <input type="number" placeholder="Reps" className="w-full bg-zinc-900 rounded-lg px-2 py-1 text-xs outline-none" onChange={e => setRepsVal(Number(e.target.value))} />
+                                        </div>
+                                        <p className="text-[10px] font-black uppercase text-zinc-500">Estimativa 1RM: <span className="text-[#00FF41] text-sm">{calculate1RM(weightVal, repsVal)} kg</span></p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2">
+                                        <input type="number" placeholder="Peso Total (incl. barra)" className="w-full bg-zinc-900 rounded-lg px-2 py-1 text-xs outline-none" onChange={e => setWeightVal(Number(e.target.value))} />
+                                        <div className="flex flex-wrap gap-1">
+                                            <span className="text-[9px] font-black uppercase text-zinc-600 mr-1 mt-1">Lado:</span>
+                                            {getPlates(weightVal).map((p, i) => (
+                                                <span key={i} className="px-1.5 py-0.5 bg-zinc-800 rounded text-[9px] font-mono text-white">{p}</span>
+                                            ))}
+                                            {weightVal > 20 && getPlates(weightVal).length === 0 && <span className="text-[9px] text-zinc-700">Peso inválido</span>}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Reps & Notes */}
                         <div className="flex gap-3 mb-3 pl-8">
@@ -140,6 +221,7 @@ const TrainingEditView: React.FC = () => {
                                     <div key={rIdx} className="bg-black pr-2 pl-3 py-1 rounded-lg border border-zinc-900 flex items-center gap-2 group-focus-within:border-[#00FF41] transition-colors">
                                         <span className="text-[10px] text-zinc-500 font-bold select-none">S{rIdx + 1}</span>
                                         <input
+                                            title="Tempo de Descanso"
                                             type="number"
                                             className="bg-transparent border-none text-[#00FF41] font-mono text-sm w-10 text-center focus:outline-none"
                                             value={rest}

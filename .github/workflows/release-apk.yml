@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Permissão para criar Release
+    environment: android
 
     steps:
       - name: Checkout Code

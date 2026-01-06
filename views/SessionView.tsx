@@ -33,22 +33,39 @@ const SessionView: React.FC = () => {
         NotificationService.init();
 
         const listener = NotificationService.addListener('localNotificationActionPerformed', (action) => {
+            console.log("Notification Action:", action.actionId);
             if (action.actionId === 'SET_COMPLETE') {
                 window.dispatchEvent(new CustomEvent('NEOPULSE_NEXT_SET'));
+            } else if (action.actionId === 'PAUSE_TIMER') {
+                window.dispatchEvent(new CustomEvent('NEOPULSE_PAUSE'));
+            } else if (action.actionId === 'RESET_TIMER') {
+                window.dispatchEvent(new CustomEvent('NEOPULSE_RESET'));
             }
         });
 
         return () => { listener.then(l => l.remove()); };
     }, []);
 
-    // Handle Event from Notification
+    // Handle Events from Notification
     useEffect(() => {
-        const handler = () => {
-            handleSetComplete();
+        const nextSetHandler = () => handleSetComplete();
+        const pauseHandler = () => setIsActive(prev => !prev);
+        const resetHandler = () => {
+            setIsActive(false);
+            if (isStopwatch) setStopwatchTime(0);
+            else if (currentExercise) setTimeLeft(currentExercise.restTimes[currentSetIndex]);
         };
-        window.addEventListener('NEOPULSE_NEXT_SET', handler);
-        return () => window.removeEventListener('NEOPULSE_NEXT_SET', handler);
-    });
+
+        window.addEventListener('NEOPULSE_NEXT_SET', nextSetHandler);
+        window.addEventListener('NEOPULSE_PAUSE', pauseHandler);
+        window.addEventListener('NEOPULSE_RESET', resetHandler);
+
+        return () => {
+            window.removeEventListener('NEOPULSE_NEXT_SET', nextSetHandler);
+            window.removeEventListener('NEOPULSE_PAUSE', pauseHandler);
+            window.removeEventListener('NEOPULSE_RESET', resetHandler);
+        };
+    }, [currentExercise, currentSetIndex, isStopwatch]);
 
     // Timer & Stopwatch Logic
     useEffect(() => {
@@ -58,6 +75,7 @@ const SessionView: React.FC = () => {
             NotificationService.showStickyNotification(
                 `Treino: ${currentExercise?.name}`,
                 `Série ${currentSetIndex + 1} | Descanso: ${timeLeft}s`,
+                !isActive, // Not used yet but good for future
                 1001,
                 'neopulse_silent'
             );
@@ -72,15 +90,29 @@ const SessionView: React.FC = () => {
             NotificationService.showStickyNotification(
                 `Treino: ${currentExercise?.name}`,
                 `Cronômetro: ${stopwatchTime}s`,
+                !isActive,
                 1001,
                 'neopulse_silent'
             );
             interval = setInterval(() => setStopwatchTime(prev => prev + 1), 1000);
+        } else if (!isActive && currentExercise) {
+            // Updated notification when paused to show Resume button
+            NotificationService.showStickyNotification(
+                `Pausado: ${currentExercise?.name}`,
+                isStopwatch ? `Cronômetro: ${stopwatchTime}s` : `Série ${currentSetIndex + 1} | Pausado em ${timeLeft}s`,
+                true,
+                1001,
+                'neopulse_silent'
+            );
         }
 
-        if (!isActive) NotificationService.cancel(1001);
+        // Only cancel alert specific notification, not the main one if we want it to stay
+        // but if the workout ends or we leave, we cancel all.
+        // For now, let's not cancel 1001 unless we unmount.
 
-        return () => clearInterval(interval);
+        return () => {
+            if (interval) clearInterval(interval);
+        };
     }, [isActive, timeLeft, stopwatchTime, isStopwatch, currentExercise, currentSetIndex]);
 
     // Reset timer whenever exercise/set changes

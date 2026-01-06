@@ -216,33 +216,25 @@ const SessionView: React.FC = () => {
     const handleSetComplete = async () => {
         if (!currentExercise) return;
 
-        if (currentSetIndex < currentExercise.restTimes.length) {
-            if (currentSetIndex < currentExercise.restTimes.length - 1) {
-                const nextSet = currentSetIndex + 1;
-                setCurrentSetIndex(nextSet);
-                const nextDuration = currentExercise.restTimes[nextSet];
-                setTimeLeft(nextDuration);
-                setIsActive(true);
+        // If it's not the last set, move to next set and start rest
+        if (currentSetIndex < currentExercise.restTimes.length - 1) {
+            const nextSet = currentSetIndex + 1;
+            setCurrentSetIndex(nextSet);
+            const nextDuration = currentExercise.restTimes[nextSet];
+            setTimeLeft(nextDuration);
+            setIsActive(true);
 
-                // Sync widget with Timer
-                WidgetService.syncSession({
-                    exercise: currentExercise.name,
-                    next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
-                    currentSet: nextSet + 1,
-                    totalSets: currentExercise.restTimes.length,
-                    timerEnd: Date.now() + (nextDuration * 1000)
-                });
-            } else {
-                setIsActive(false);
-                // Clear widget timer for last set
-                WidgetService.syncSession({
-                    exercise: currentExercise.name,
-                    next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
-                    currentSet: currentSetIndex + 1,
-                    totalSets: currentExercise.restTimes.length,
-                    timerEnd: null
-                });
-            }
+            // Sync widget with Timer
+            WidgetService.syncSession({
+                exercise: currentExercise.name,
+                next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                currentSet: nextSet + 1,
+                totalSets: currentExercise.restTimes.length,
+                timerEnd: Date.now() + (nextDuration * 1000)
+            });
+        } else {
+            // It's the last set, advance to next exercise directly
+            finishExercise();
         }
     };
 
@@ -346,6 +338,26 @@ const SessionView: React.FC = () => {
                     {currentExercise.name}
                 </h2>
 
+                {/* Set Progress Dashes */}
+                <div className="flex gap-1.5 mt-3 mb-1">
+                    {Array.from({ length: currentExercise.restTimes.length }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="h-1.5 flex-1 rounded-full transition-all duration-500"
+                            style={{
+                                backgroundColor: i < currentSetIndex
+                                    ? theme.primary
+                                    : i === currentSetIndex
+                                        ? `${theme.primary}40`
+                                        : 'rgba(255,255,255,0.05)',
+                                boxShadow: i < currentSetIndex
+                                    ? `0 0 10px ${theme.primary}40`
+                                    : 'none'
+                            }}
+                        ></div>
+                    ))}
+                </div>
+
                 {/* Reps and Notes Display */}
                 <div className="flex flex-col gap-1 mt-2">
                     {currentExercise.reps && (
@@ -395,28 +407,17 @@ const SessionView: React.FC = () => {
 
             {/* Controls */}
             <div className="mt-auto flex gap-4 p-4">
-                {currentSetIndex < currentExercise.restTimes.length ? (
-                    <button
-                        title="Próxima Série"
-                        onClick={handleSetComplete}
-                        disabled={isActive}
-                        className={`flex-1 h-20 rounded-3xl font-black text-sm tracking-[0.2em] flex items-center justify-center transition-all active:scale-[0.96] shadow-2xl ${isActive
-                            ? 'bg-zinc-900 text-zinc-600 border border-zinc-900 cursor-not-allowed'
-                            : 'bg-white text-black'
-                            }`}
-                    >
-                        {currentSetIndex === currentExercise.restTimes.length - 1 ? 'ÚLTIMA SÉRIE!' : 'PRÓXIMA SÉRIE'}
-                    </button>
-                ) : (
-                    <button
-                        title="Próximo Exercício"
-                        onClick={finishExercise}
-                        style={{ backgroundColor: theme.primary, boxShadow: `0 0 20px ${theme.primary}40` }}
-                        className="flex-1 h-20 rounded-3xl text-black font-black tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
-                    >
-                        <i className="fa-solid fa-check"></i> PRÓXIMO EXERCÍCIO
-                    </button>
-                )}
+                <button
+                    title="Próxima Série"
+                    onClick={handleSetComplete}
+                    disabled={isActive}
+                    className={`flex-1 h-20 rounded-3xl font-black text-sm tracking-[0.2em] flex items-center justify-center transition-all active:scale-[0.96] shadow-2xl ${isActive
+                        ? 'bg-zinc-900 text-zinc-600 border border-zinc-900 cursor-not-allowed'
+                        : 'bg-white text-black'
+                        }`}
+                >
+                    {currentSetIndex === currentExercise.restTimes.length - 1 ? 'FINALIZAR EXERCÍCIO' : 'PRÓXIMA SÉRIE'}
+                </button>
             </div>
 
             {/* Prev/Next Peek */}

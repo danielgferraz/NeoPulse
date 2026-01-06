@@ -233,18 +233,24 @@ const SessionView: React.FC = () => {
                 timerEnd: Date.now() + (nextDuration * 1000)
             });
         } else {
-            // It's the last set, advance to next exercise directly
-            finishExercise();
+            // It's the last set, advance to next exercise and start the rest timer from this last set
+            const lastRest = currentExercise.restTimes[currentSetIndex];
+            finishExercise(lastRest);
         }
     };
 
-    const finishExercise = async () => {
+    const finishExercise = async (initialRest?: number) => {
         if (!currentExercise || !training) return;
 
         if (currentExerciseIndex < (exercises?.length || 0) - 1) {
             setCurrentExerciseIndex(prev => prev + 1);
             setCurrentSetIndex(0);
-            setIsActive(false);
+            if (initialRest) {
+                setTimeLeft(initialRest);
+                setIsActive(true);
+            } else {
+                setIsActive(false);
+            }
         } else {
             // End of entire training session
             await db.history.add({

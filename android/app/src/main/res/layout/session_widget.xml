@@ -2,105 +2,142 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="8dp"
-    android:background="@android:color/black">
+    android:background="@drawable/widget_rounded_bg"
+    android:padding="12dp">
 
-    <LinearLayout
+    <!-- Header Section -->
+    <RelativeLayout
+        android:id="@+id/widget_header"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="8dp"
-        android:background="#000000">
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/app_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="NEOPULSE"
+            android:textColor="#00FF41"
+            android:textSize="10sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/session_exercise_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="NEOPULSE"
+            android:layout_alignParentRight="true"
+            android:text="TREINO"
             android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end" />
-
-        <TextView
-            android:id="@+id/session_sets_info"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SEM SESSÃO"
-            android:textColor="#00FF41"
             android:textSize="10sp"
             android:textStyle="bold"
-            android:letterSpacing="0.1" />
-
-        <Chronometer
-            android:id="@+id/session_timer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginVertical="2dp"
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:gravity="center_horizontal" />
-
-        <TextView
-            android:id="@+id/session_next_exercise"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PRÓXIMO: ---"
-            android:textColor="#888888"
-            android:textSize="9sp"
-            android:textStyle="italic"
             android:maxLines="1"
             android:ellipsize="end" />
+    </RelativeLayout>
+
+    <!-- Center Section: Circular Timer -->
+    <FrameLayout
+        android:id="@+id/timer_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/button_container"
+        android:layout_below="@+id/widget_header"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp">
+
+        <View
+            android:layout_width="110dp"
+            android:layout_height="110dp"
+            android:layout_gravity="center"
+            android:background="@drawable/timer_circle_bg" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="8dp"
-            android:gravity="center">
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/session_btn_reset"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:layout_marginRight="4dp"
-                android:background="@android:color/darker_gray"
-                android:text="ZERAR"
+            <Chronometer
+                android:id="@+id/session_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:textColor="#FFFFFF"
-                android:textSize="10sp"
-                android:gravity="center"
+                android:textSize="24sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/session_btn_pause"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:layout_marginHorizontal="2dp"
-                android:background="#00FF41"
-                android:text="PAUSAR"
-                android:textColor="#000000"
-                android:textSize="10sp"
-                android:gravity="center"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/session_btn_next"
-                android:layout_width="0dp"
-                android:layout_height="28dp"
-                android:layout_weight="1"
-                android:layout_marginLeft="4dp"
-                android:background="#222222"
-                android:text="FEITO"
-                android:textColor="#FFFFFF"
-                android:textSize="10sp"
-                android:gravity="center"
-                android:textStyle="bold" />
-
+                android:id="@+id/session_sets_info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="---"
+                android:textColor="#888888"
+                android:textSize="8sp" />
         </LinearLayout>
+    </FrameLayout>
+
+    <!-- Bottom Section: Next Exercise Peek -->
+    <TextView
+        android:id="@+id/session_next_exercise"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/button_container"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="4dp"
+        android:text="PRÓXIMO: ---"
+        android:textColor="#444444"
+        android:textSize="8sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <!-- Button Section -->
+    <LinearLayout
+        android:id="@+id/button_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:paddingTop="4dp">
+
+        <TextView
+            android:id="@+id/session_btn_reset"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_marginRight="4dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_btn_bg"
+            android:gravity="center"
+            android:text="ZERAR"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/session_btn_pause"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_marginLeft="2dp"
+            android:layout_marginRight="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_btn_primary_bg"
+            android:gravity="center"
+            android:text="PAUSAR"
+            android:textColor="#000000"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/session_btn_next"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_marginLeft="4dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_btn_bg"
+            android:gravity="center"
+            android:text="FEITO"
+            android:textColor="#FFFFFF"
+            android:textSize="9sp"
+            android:textStyle="bold" />
 
     </LinearLayout>
+
 </RelativeLayout>

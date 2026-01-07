@@ -41,22 +41,24 @@ public class SessionWidget extends AppWidgetProvider {
                 views.setTextViewText(R.id.session_sets_info, "SÉRIE " + currentSet + " / " + totalSets);
                 views.setTextViewText(R.id.session_next_exercise, "PRÓXIMO: " + next.toUpperCase());
 
+                views.setViewVisibility(R.id.session_timer, View.VISIBLE);
                 if (timerEnd > System.currentTimeMillis()) {
-                    views.setViewVisibility(R.id.session_timer, View.VISIBLE);
                     long duration = timerEnd - System.currentTimeMillis();
                     views.setChronometer(R.id.session_timer, SystemClock.elapsedRealtime() + duration, null, true);
                     views.setChronometerCountDown(R.id.session_timer, true);
                 } else {
-                    views.setViewVisibility(R.id.session_timer, View.GONE);
+                    views.setChronometer(R.id.session_timer, SystemClock.elapsedRealtime(), null, false);
+                    views.setTextViewText(R.id.session_timer, "00:00");
                 }
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
         } else {
-            views.setTextViewText(R.id.session_exercise_name, "NEOPULSE");
-            views.setTextViewText(R.id.session_sets_info, "SEM SESSÃO ATIVA");
-            views.setViewVisibility(R.id.session_timer, View.GONE);
+            views.setTextViewText(R.id.session_exercise_name, "TREINO");
+            views.setTextViewText(R.id.session_sets_info, "---");
+            views.setViewVisibility(R.id.session_timer, View.VISIBLE);
+            views.setTextViewText(R.id.session_timer, "--:--");
             views.setTextViewText(R.id.session_next_exercise, "ABRA O APP PARA TREINAR");
         }
 

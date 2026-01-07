@@ -28,10 +28,11 @@ public class NeoPulseWidget extends AppWidgetProvider {
                 JSONObject data = new JSONObject(widgetDataStr);
                 int count = data.optInt("count", 0);
                 int goal = data.optInt("goal", 12);
+                if (goal <= 0) goal = 12;
                 String weight = data.optString("weight", "---");
 
                 views.setTextViewText(R.id.widget_monthly_count, count + " / " + goal + " TREINOS");
-                views.setProgressBar(R.id.widget_progress, goal, count, false);
+                views.setProgressBar(R.id.widget_progress, goal, Math.min(count, goal), false);
                 views.setTextViewText(R.id.widget_last_weight, "PESO: " + weight + " KG");
             } catch (Exception e) {
                 android.util.Log.e("NeoPulseWidget", "Error parsing widget data", e);

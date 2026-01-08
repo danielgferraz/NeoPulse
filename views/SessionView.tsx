@@ -11,10 +11,13 @@ import { Preferences } from '@capacitor/preferences';
 const SessionView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const trainingId = parseInt(id || '0');
+    const isFreeTraining = trainingId === 0;
     const navigate = useNavigate();
     const { theme, soundMode, hapticPattern } = useTheme();
 
-    const training = useLiveQuery(() => db.trainings.get(trainingId), [trainingId]);
+    const training = useLiveQuery(async () =>
+        isFreeTraining ? { id: 0, name: 'Treino Livre', order: -1 } : await db.trainings.get(trainingId)
+        , [trainingId, isFreeTraining]);
     const exercises = useLiveQuery(() =>
         db.exercises.where('trainingId').equals(trainingId).sortBy('order')
         , [trainingId]);
@@ -27,6 +30,12 @@ const SessionView: React.FC = () => {
     const [isStopwatch, setIsStopwatch] = useState(false);
     const [stopwatchTime, setStopwatchTime] = useState(0);
     const [hasRestored, setHasRestored] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [addName, setAddName] = useState('');
+    const [addSets, setAddSets] = useState(3);
+    const [addRest, setAddRest] = useState(60);
     const lastSessionIndices = useRef({ exercise: -1, set: -1 });
 
     const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
@@ -171,6 +180,9 @@ const SessionView: React.FC = () => {
                 trainingId,
                 exerciseIndex: currentExerciseIndex,
                 setIndex: currentSetIndex,
+                exercise: currentExercise.name,
+                next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                totalSets: currentExercise.restTimes.length + 1,
                 timeLeft,
                 isActive,
                 isStopwatch,
@@ -217,7 +229,6 @@ const SessionView: React.FC = () => {
     const handleSetComplete = async () => {
         if (!currentExercise) return;
 
-        // If it's not the last set, move to next set and start rest
         if (currentSetIndex < currentExercise.restTimes.length) {
             const restDuration = currentExercise.restTimes[currentSetIndex];
             const nextSet = currentSetIndex + 1;
@@ -225,7 +236,6 @@ const SessionView: React.FC = () => {
             setTimeLeft(restDuration);
             setIsActive(true);
 
-            // Sync widget with Timer
             if (exercises) {
                 WidgetService.syncSession({
                     exercise: currentExercise.name,
@@ -236,8 +246,6 @@ const SessionView: React.FC = () => {
                 });
             }
         } else {
-            // It's the last set, advance to next exercise directly
-            // Start timer with the last rest of the completed exercise
             const lastRest = currentExercise.restTimes[currentExercise.restTimes.length - 1];
             finishExercise(lastRest);
         }
@@ -251,12 +259,10 @@ const SessionView: React.FC = () => {
             setCurrentExerciseIndex(prev => prev + 1);
             setCurrentSetIndex(0);
 
-            // Start timer for the next exercise using provided rest
             const restTime = initialRest || 60;
             setTimeLeft(restTime);
             setIsActive(true);
 
-            // Sync widget for context switch
             WidgetService.syncSession({
                 exercise: nextExercise.name,
                 next: exercises[currentExerciseIndex + 2]?.name || 'Fim do Treino',
@@ -265,27 +271,176 @@ const SessionView: React.FC = () => {
                 timerEnd: Date.now() + (restTime * 1000)
             });
         } else {
-            // End of entire training session
-            await db.history.add({
-                exerciseName: "Sessão Completa",
-                sets: exercises.length,
-                trainingName: training.name,
-                timestamp: Date.now()
-            });
-
-            const recentHistory = await db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray();
-            const weightLogs = await db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray();
-
-            WidgetService.sync({
-                count: recentHistory.length,
-                goal: parseInt(localStorage.getItem('neopulse_monthly_goal') || '12'),
-                weight: weightLogs[0]?.weight?.toString() || '---'
-            });
-
-            navigate(`/summary?tid=${trainingId}&dur=00:00`);
-            Preferences.remove({ key: 'neopulse_persistent_session' });
+            handleFinalFinish();
         }
     };
+
+    const handleFinalFinish = async () => {
+        if (!training || !exercises) return;
+        await db.history.add({
+            exerciseName: "Sessão Completa",
+            sets: exercises.length,
+            trainingName: training.name,
+            timestamp: Date.now()
+        });
+        await finalizeAndNavigate();
+    };
+
+    const handleCancelWorkout = async () => {
+        await Preferences.remove({ key: 'neopulse_persistent_session' });
+        WidgetService.syncSession(null);
+        navigate('/');
+    };
+
+    const handleManualFinish = async () => {
+        if (!training || !exercises) return;
+        await db.history.add({
+            exerciseName: "Sessão Finalizada",
+            sets: currentExerciseIndex + 1,
+            trainingName: training.name,
+            timestamp: Date.now()
+        });
+        await finalizeAndNavigate();
+    };
+
+    const finalizeAndNavigate = async () => {
+        const recentHistory = await db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray();
+        const weightLogs = await db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray();
+
+        WidgetService.sync({
+            count: recentHistory.length,
+            goal: parseInt(localStorage.getItem('neopulse_monthly_goal') || '12'),
+            weight: weightLogs[0]?.weight?.toString() || '---'
+        });
+
+        await Preferences.remove({ key: 'neopulse_persistent_session' });
+        WidgetService.syncSession(null);
+        navigate(`/summary?tid=${trainingId}&dur=00:00&free=${isFreeTraining}`);
+    };
+
+    const addFreeExercise = async () => {
+        if (!addName) return;
+
+        await db.exercises.add({
+            trainingId: 0,
+            name: addName.toUpperCase(),
+            restTimes: Array(Math.max(0, addSets - 1)).fill(addRest),
+            order: exercises?.length || 0
+        });
+
+        setShowAddModal(false);
+        setAddName('');
+        setAddSets(3);
+        setAddRest(60);
+    };
+
+    function currentExercisesCount() {
+        return currentExerciseIndex + 1;
+    }
+
+    const modals = (
+        <>
+            {showAddModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Novo Exercício</h3>
+                            <button title="Fechar" onClick={() => setShowAddModal(false)} className="text-zinc-500 hover:text-white">
+                                <i className="fa-solid fa-times text-lg"></i>
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div>
+                                <label className="text-[10px] font-black uppercase text-[#00FF41] tracking-widest block mb-2">Nome do Exercício</label>
+                                <input
+                                    autoFocus
+                                    className="w-full bg-black/40 border border-zinc-800 rounded-2xl px-5 py-4 text-white font-bold uppercase focus:border-[#00FF41] outline-none transition-colors"
+                                    placeholder="EX: SUPINO INCLINADO"
+                                    value={addName}
+                                    onChange={(e) => setAddName(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-2">Séries</label>
+                                    <div className="bg-black/40 border border-zinc-800 rounded-2xl flex items-center p-1">
+                                        <button title="Diminuir Séries" onClick={() => setAddSets(Math.max(1, addSets - 1))} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-minus"></i></button>
+                                        <span className="flex-1 text-center font-black text-white italic text-lg">{addSets}</span>
+                                        <button title="Aumentar Séries" onClick={() => setAddSets(addSets + 1)} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-plus"></i></button>
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-2">Descanso (s)</label>
+                                    <div className="bg-black/40 border border-zinc-800 rounded-2xl flex items-center p-1">
+                                        <button title="Reduzir Descanso" onClick={() => setAddRest(Math.max(0, addRest - 15))} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-minus"></i></button>
+                                        <span className="flex-1 text-center font-black text-white italic text-lg">{addRest}s</span>
+                                        <button title="Aumentar Descanso" onClick={() => setAddRest(addRest + 15)} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={addFreeExercise}
+                                disabled={!addName}
+                                style={{ backgroundColor: theme.primary }}
+                                className="w-full py-5 rounded-2xl text-black font-black uppercase tracking-widest active:scale-95 transition-all disabled:opacity-30 disabled:grayscale mt-4"
+                            >
+                                Confirmar Adição
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showCancelConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
+                        <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Cancelar Treino?</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed mb-8">Todo o progresso desta sessão será perdido. Tem certeza que deseja sair?</p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={handleCancelWorkout}
+                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase transition-all active:scale-95 bg-red-600 text-white"
+                            >
+                                Sim, Cancelar
+                            </button>
+                            <button
+                                onClick={() => setShowCancelConfirm(false)}
+                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
+                            >
+                                Voltar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showFinishConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
+                        <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Finalizar Treino?</h3>
+                        <p className="text-zinc-400 text-sm leading-relaxed mb-8">Deseja encerrar o treino agora e salvar o progresso atual no histórico?</p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={handleManualFinish}
+                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase transition-all active:scale-95 bg-[#00FF41] text-black"
+                            >
+                                Sim, Finalizar
+                            </button>
+                            <button
+                                onClick={() => setShowFinishConfirm(false)}
+                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
+                            >
+                                Voltar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 
     // Widget Command Polling and Cleanup
     useEffect(() => {
@@ -322,32 +477,51 @@ const SessionView: React.FC = () => {
 
     if (!exercises || exercises.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-10 h-screen">
-                <p className="text-zinc-500 mb-4">Pasta vazia...</p>
+            <div className="fixed inset-0 bg-black flex flex-col items-center justify-center p-10 z-[60]">
+                <div className="w-20 h-20 rounded-full bg-zinc-900 flex items-center justify-center mb-6 border border-zinc-800">
+                    <i className="fa-solid fa-dumbbell text-2xl text-zinc-700"></i>
+                </div>
+                <h3 className="text-xl font-black text-white uppercase italic mb-2">Treino Livre</h3>
+                <p className="text-zinc-500 mb-8 text-center text-sm">Adicione seu primeiro exercício para começar.</p>
                 <button
-                    title="Adicionar Exercícios"
-                    onClick={() => navigate(`/training/${trainingId}`)}
-                    className="underline text-[#00FF41]"
+                    onClick={() => setShowAddModal(true)}
+                    style={{ backgroundColor: theme.primary }}
+                    className="w-full max-w-xs py-4 rounded-2xl text-black font-black uppercase tracking-widest active:scale-95 transition-transform"
                 >
-                    Adicionar Exercícios
+                    + Adicionar Exercício
                 </button>
+                <button
+                    onClick={() => navigate('/')}
+                    className="mt-6 text-zinc-600 font-bold uppercase text-[10px] tracking-widest hover:text-white"
+                >
+                    Voltar
+                </button>
+                {modals}
             </div>
         );
     }
 
-    if (!currentExercise || !training) return <div className="p-10 text-center">Carregando...</div>;
+    if (!currentExercise || !training) return <div className="p-10 text-center text-zinc-500">Carregando Sessão...</div>;
 
     return (
-        <div className="fixed inset-0 bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden">
+        <div className="fixed inset-0 bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden z-[60]">
             {/* Header: Exercise Info */}
-            <div className="p-8 pt-12">
+            <div className="p-6 pt-10 sm:p-8 sm:pt-12">
                 <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-[0.3em]">
+                    <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-[0.2em] opacity-80">
                         Exercício {currentExerciseIndex + 1}/{exercises.length}
                     </span>
-                    <button onClick={() => navigate('/')} className="text-zinc-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors">SAIR</button>
+                    {isFreeTraining && (
+                        <button
+                            title="Adicionar Exercício"
+                            onClick={() => setShowAddModal(true)}
+                            className="bg-zinc-900 text-white w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-800 active:scale-90 transition-transform"
+                        >
+                            <i className="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+                    )}
                 </div>
-                <h2 className="text-3xl font-black uppercase tracking-tight text-white leading-none break-words">
+                <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-none break-words">
                     {currentExercise.name}
                 </h2>
 
@@ -388,8 +562,8 @@ const SessionView: React.FC = () => {
             </div>
 
             {/* Main Timer Display */}
-            <div className="flex-1 flex flex-col items-center justify-center -mt-10">
-                <div className="relative">
+            <div className="flex-1 flex flex-col items-center justify-center -mt-6 sm:-mt-10 min-h-0">
+                <div className="relative transform scale-90 sm:scale-100 transition-transform">
                     <Timer
                         timeLeft={isStopwatch ? stopwatchTime : timeLeft}
                         isActive={isActive}
@@ -411,8 +585,8 @@ const SessionView: React.FC = () => {
                 </div>
 
                 {/* Set Indicator */}
-                <div className="mt-8 flex flex-col items-center">
-                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-1">Série Atual</span>
+                <div className="mt-4 sm:mt-8 flex flex-col items-center">
+                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">Série Atual</span>
                     <div className="flex items-baseline gap-2">
                         <span className="text-6xl font-black italic text-white">{currentSetIndex + 1}</span>
                         <span className="text-xl font-black text-zinc-800 uppercase italic">/ {currentExercise.restTimes.length + 1}</span>
@@ -421,12 +595,12 @@ const SessionView: React.FC = () => {
             </div>
 
             {/* Main Action Button */}
-            <div className="mt-auto flex gap-4 p-6">
+            <div className="mt-auto flex gap-4 p-5 sm:p-6">
                 <button
                     title="Próxima Série"
                     onClick={handleSetComplete}
                     disabled={isActive}
-                    className={`flex-1 h-20 rounded-3xl font-black text-sm tracking-[0.2em] flex items-center justify-center transition-all active:scale-[0.96] shadow-2xl ${isActive
+                    className={`flex-1 h-16 sm:h-20 rounded-3xl font-black text-sm tracking-[0.15em] flex items-center justify-center transition-all active:scale-[0.96] shadow-2xl ${isActive
                         ? 'bg-zinc-900 text-zinc-600 border border-zinc-900 cursor-not-allowed'
                         : 'bg-white text-black'
                         }`}
@@ -436,32 +610,36 @@ const SessionView: React.FC = () => {
             </div>
 
             {/* Nav Peek */}
-            <div className="flex justify-between px-8 pb-10">
+            <div className="flex justify-between px-8 pb-8 sm:pb-10">
                 <button
-                    onClick={() => currentExerciseIndex > 0 && setCurrentExerciseIndex(prev => prev - 1)}
-                    disabled={currentExerciseIndex === 0}
-                    className={`text-[10px] font-black uppercase tracking-widest transition-opacity ${currentExerciseIndex === 0 ? 'opacity-0 pointer-events-none' : 'text-zinc-600 hover:text-white'}`}
+                    onClick={() => setShowCancelConfirm(true)}
+                    className="text-[10px] font-black uppercase tracking-widest text-red-500/80 hover:text-red-500 transition-colors"
                 >
-                    <i className="fa-solid fa-chevron-left mr-2"></i> Anterior
+                    <i className="fa-solid fa-xmark mr-2"></i> Cancelar
                 </button>
                 <div className="flex-1 flex justify-center">
-                    {currentExerciseIndex < exercises.length - 1 && (
+                    {currentExercisesCount() < exercises.length && (
                         <div className="text-center opacity-40">
                             <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Próximo</p>
-                            <p className="text-[10px] font-black uppercase italic text-zinc-400 truncate max-w-[120px]">{exercises[currentExerciseIndex + 1].name}</p>
+                            <p className="text-[10px] font-black uppercase italic text-zinc-400 truncate max-w-[120px]">{exercises[currentExerciseIndex + 1]?.name || '---'}</p>
                         </div>
                     )}
                 </div>
                 <button
-                    onClick={() => finishExercise()}
-                    disabled={currentExerciseIndex === exercises.length - 1}
-                    className={`text-[10px] font-black uppercase tracking-widest transition-opacity ${currentExerciseIndex === exercises.length - 1 ? 'opacity-0 pointer-events-none' : 'text-zinc-600 hover:text-white'}`}
+                    onClick={() => setShowFinishConfirm(true)}
+                    className="text-[10px] font-black uppercase tracking-widest text-[#00FF41] hover:text-white transition-colors"
                 >
-                    Pular <i className="fa-solid fa-chevron-right ml-2"></i>
+                    Terminar <i className="fa-solid fa-flag-checkered ml-2"></i>
                 </button>
             </div>
+
+            {modals}
         </div>
     );
+
+    function currentExercisesCount() {
+        return currentExerciseIndex + 1;
+    }
 };
 
 export default SessionView;

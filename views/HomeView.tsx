@@ -6,6 +6,68 @@ import { useTheme } from '../contexts/ThemeContext';
 import { WidgetService } from '../services/widgetService';
 import { Preferences } from '@capacitor/preferences';
 
+const WorkoutPreview = ({ trainingId, onClose, navigate, theme }: { trainingId: number | null, onClose: () => void, navigate: any, theme: any }) => {
+    const previewTraining = useLiveQuery(() => trainingId ? db.trainings.get(trainingId) : Promise.resolve(null), [trainingId]);
+    const previewExercises = useLiveQuery(() => trainingId ? db.exercises.where('trainingId').equals(trainingId).sortBy('order') : Promise.resolve([]), [trainingId]);
+
+    if (!trainingId || !previewTraining) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] flex items-end animate-in fade-in duration-300">
+            <div className="w-full bg-zinc-900 rounded-t-[3rem] p-8 border-t border-white/10 animate-in slide-in-from-bottom-10 max-h-[90vh] flex flex-col shadow-2xl">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex-1">
+                        <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-[0.3em] leading-none mb-1 block">Visualizar Treino</span>
+                        <h3 className="text-2xl font-black uppercase italic text-white leading-tight break-words">{previewTraining.name}</h3>
+                    </div>
+                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center shrink-0 ml-4">
+                        <i className="fa-solid fa-times"></i>
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-3">
+                    {previewExercises.length > 0 ? (
+                        previewExercises.map((ex, i) => (
+                            <div key={ex.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center gap-4">
+                                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shrink-0 border border-white/10">
+                                    <span className="text-[10px] font-black text-zinc-500">{i + 1}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-black text-white uppercase italic truncate">{ex.name}</p>
+                                    <div className="flex gap-2 mt-1">
+                                        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{ex.restTimes.length + 1} Séries</span>
+                                        {ex.reps && <span className="text-[9px] font-bold text-[#00FF41] uppercase tracking-widest">• {ex.reps} reps</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="py-10 text-center opacity-40">
+                            <p className="text-sm text-zinc-500 italic">Nenhum exercício cadastrado.</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-white/5">
+                    <button
+                        onClick={() => {
+                            onClose();
+                            navigate(`/session/${trainingId}`);
+                        }}
+                        style={{
+                            backgroundColor: theme.primary,
+                            boxShadow: `0 0 30px ${theme.primary}50`
+                        }}
+                        className="w-full py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-[0.96] transition-all transform"
+                    >
+                        <span className="text-lg font-black uppercase italic tracking-tighter text-black">Iniciar Treino Agora</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const HomeView: React.FC = () => {
     const trainings = useLiveQuery(() => db.trainings.orderBy('order').toArray());
     const history = useLiveQuery(() => db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray());
@@ -16,6 +78,7 @@ const HomeView: React.FC = () => {
     const [weightInput, setWeightInput] = useState('');
     const [showWeightInput, setShowWeightInput] = useState(false);
     const [activeSession, setActiveSession] = useState<any>(null);
+    const [previewTrainingId, setPreviewTrainingId] = useState<number | null>(null);
 
     // Widget Sync & Persistent Session Check
     React.useEffect(() => {
@@ -34,6 +97,14 @@ const HomeView: React.FC = () => {
                 const tr = await db.trainings.get(session.trainingId);
                 if (tr) {
                     setActiveSession({ ...session, trainingName: tr.name });
+                    // Proactive: Update widget on home load if session exists
+                    WidgetService.syncSession({
+                        exercise: session.exercise,
+                        next: session.next || '---',
+                        currentSet: session.setIndex + 1,
+                        totalSets: session.totalSets || 1,
+                        timerEnd: session.isActive && !session.isStopwatch ? (session.lastTimestamp + session.timeLeft * 1000) : null
+                    });
                 }
             } else {
                 setActiveSession(null);
@@ -154,6 +225,8 @@ const HomeView: React.FC = () => {
         }
     };
 
+
+
     return (
         <div className="w-full max-w-md flex flex-col gap-4 pb-20 animate-in fade-in">
             {/* Start Workout Primary Action */}
@@ -209,12 +282,29 @@ const HomeView: React.FC = () => {
                             </button>
                         </div>
                         <div className="grid grid-cols-1 gap-3 max-h-[50vh] overflow-y-auto">
+                            <button
+                                title="Fazer Treino Livre"
+                                onClick={async () => {
+                                    // Clear temporary exercises for trainingId 0
+                                    await db.exercises.where('trainingId').equals(0).delete();
+                                    setShowSelection(false);
+                                    navigate('/session/0');
+                                }}
+                                className="p-5 bg-white border border-[#00FF41] rounded-2xl text-left active:scale-[0.98] transition-transform"
+                                style={{ boxShadow: `0 0 20px rgba(0, 255, 65, 0.2)` }}
+                            >
+                                <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-widest leading-none">Modo Livre</span>
+                                <p className="text-lg font-black uppercase italic text-black mt-1">Treino Livre</p>
+                            </button>
+
+                            <div className="h-px bg-zinc-800 my-1"></div>
+
                             {trainings?.map((t) => (
                                 <button
                                     key={t.id}
                                     onClick={() => {
                                         setShowSelection(false);
-                                        navigate(`/session/${t.id}`);
+                                        setPreviewTrainingId(t.id!);
                                     }}
                                     className="p-5 bg-zinc-950 border border-zinc-800 rounded-2xl text-left hover:border-zinc-500 transition-colors"
                                 >
@@ -351,10 +441,10 @@ const HomeView: React.FC = () => {
                 <div className="grid grid-cols-1 gap-3">
                     {trainings?.map((training) => (
                         <div key={training.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl flex justify-between items-center group active:scale-[0.98] transition-transform">
-                            <div onClick={() => navigate(`/session/${training.id}`)} className="flex-1 cursor-pointer">
-                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md font-bold tracking-widest uppercase">Folder</span>
+                            <div onClick={() => setPreviewTrainingId(training.id!)} className="flex-1 cursor-pointer">
+                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md font-bold tracking-widest uppercase">Pasta</span>
                                 <h3 className="text-xl font-black text-white mt-1 uppercase italic">{training.name}</h3>
-                                <p className="text-xs text-zinc-500 mt-1 font-bold">Toque para iniciar</p>
+                                <p className="text-xs text-zinc-500 mt-1 font-bold">Ver Treino</p>
                             </div>
 
                             <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 ml-2">
@@ -387,6 +477,12 @@ const HomeView: React.FC = () => {
             )}
 
             {/* <SettingsButton moved to Header> */}
+            <WorkoutPreview
+                trainingId={previewTrainingId}
+                onClose={() => setPreviewTrainingId(null)}
+                navigate={navigate}
+                theme={theme}
+            />
         </div>
     );
 };

@@ -25,7 +25,7 @@ public class SessionWidget extends AppWidgetProvider {
     static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
         SharedPreferences prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
         String sessionDataStr = prefs.getString("neopulse_session_data", null);
-
+        Log.d("SessionWidget", "Updating widget ID: " + appWidgetId);
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.session_widget);
 
         if (sessionDataStr != null) {
@@ -41,14 +41,16 @@ public class SessionWidget extends AppWidgetProvider {
                 views.setTextViewText(R.id.session_sets_info, "SÉRIE " + currentSet + " / " + totalSets);
                 views.setTextViewText(R.id.session_next_exercise, "PRÓXIMO: " + next.toUpperCase());
 
-                views.setViewVisibility(R.id.session_timer, View.VISIBLE);
                 if (timerEnd > System.currentTimeMillis()) {
                     long duration = timerEnd - System.currentTimeMillis();
+                    views.setViewVisibility(R.id.session_timer, View.VISIBLE);
+                    views.setViewVisibility(R.id.session_timer_static, View.GONE);
                     views.setChronometer(R.id.session_timer, SystemClock.elapsedRealtime() + duration, null, true);
                     views.setChronometerCountDown(R.id.session_timer, true);
                 } else {
-                    views.setChronometer(R.id.session_timer, SystemClock.elapsedRealtime(), null, false);
-                    views.setTextViewText(R.id.session_timer, "00:00");
+                    views.setViewVisibility(R.id.session_timer, View.GONE);
+                    views.setViewVisibility(R.id.session_timer_static, View.VISIBLE);
+                    views.setTextViewText(R.id.session_timer_static, "00:00");
                 }
 
             } catch (Exception e) {
@@ -57,8 +59,9 @@ public class SessionWidget extends AppWidgetProvider {
         } else {
             views.setTextViewText(R.id.session_exercise_name, "TREINO");
             views.setTextViewText(R.id.session_sets_info, "---");
-            views.setViewVisibility(R.id.session_timer, View.VISIBLE);
-            views.setTextViewText(R.id.session_timer, "--:--");
+            views.setViewVisibility(R.id.session_timer, View.GONE);
+            views.setViewVisibility(R.id.session_timer_static, View.VISIBLE);
+            views.setTextViewText(R.id.session_timer_static, "--:--");
             views.setTextViewText(R.id.session_next_exercise, "ABRA O APP PARA TREINAR");
         }
 

@@ -25,7 +25,7 @@
             android:id="@+id/session_exercise_name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
             android:text="TREINO"
             android:textColor="#FFFFFF"
             android:textSize="10sp"
@@ -44,7 +44,7 @@
         android:layout_marginTop="4dp"
         android:layout_marginBottom="4dp">
 
-        <View
+        <FrameLayout
             android:layout_width="110dp"
             android:layout_height="110dp"
             android:layout_gravity="center"
@@ -63,7 +63,17 @@
                 android:layout_height="wrap_content"
                 android:textColor="#FFFFFF"
                 android:textSize="24sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:visibility="gone" />
+            
+            <TextView
+                android:id="@+id/session_timer_static"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:text="--:--" />
 
             <TextView
                 android:id="@+id/session_sets_info"

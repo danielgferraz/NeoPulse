@@ -4,6 +4,8 @@
     android:minHeight="110dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/session_widget"
+    android:label="@string/widget_session_label"
+    android:description="@string/widget_session_desc"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen">
 </appwidget-provider>

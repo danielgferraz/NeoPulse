@@ -3,6 +3,7 @@ import { Preferences } from '@capacitor/preferences';
 export const WidgetService = {
     async sync(data: { count: number; goal: number; weight: string }) {
         try {
+            console.log('Syncing Widget Stats:', data);
             await Preferences.set({
                 key: 'neopulse_widget_data',
                 value: JSON.stringify(data)
@@ -14,6 +15,7 @@ export const WidgetService = {
 
     async syncSession(data: { exercise: string; next: string; currentSet: number; totalSets: number; timerEnd: number | null } | null) {
         try {
+            console.log('Syncing Widget Session:', data);
             if (data === null) {
                 await Preferences.remove({ key: 'neopulse_session_data' });
             } else {

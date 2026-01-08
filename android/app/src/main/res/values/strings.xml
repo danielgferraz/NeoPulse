@@ -2,6 +2,13 @@
 <resources>
     <string name="app_name">NeoPulse</string>
     <string name="title_activity_main">NeoPulse</string>
+    <string name="app_brand">NEOPULSE</string>
     <string name="package_name">com.neopulse.app</string>
     <string name="custom_url_scheme">com.neopulse.app</string>
+
+    <!-- Widgets -->
+    <string name="widget_stats_label">NeoPulse: Estatísticas</string>
+    <string name="widget_stats_desc">Acompanhe seu progresso mensal e peso.</string>
+    <string name="widget_session_label">NeoPulse: Sessão Ativa</string>
+    <string name="widget_session_desc">Controle timers e séries da sua sessão atual.</string>
 </resources>

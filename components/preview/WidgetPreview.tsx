@@ -10,11 +10,11 @@ interface WidgetData {
 }
 
 interface SessionData {
-    exerciseName: string;
-    nextExerciseName: string;
+    exercise: string;
+    next: string;
     currentSet: number;
     totalSets: number;
-    timerEndTime: number | null;
+    timerEnd: number | null;
 }
 
 const WidgetPreview: React.FC = () => {
@@ -49,14 +49,14 @@ const WidgetPreview: React.FC = () => {
 
     // Timer Loop
     useEffect(() => {
-        if (!sessionData?.timerEndTime) {
+        if (!sessionData?.timerEnd) {
             setTimeLeft('00:00');
             return;
         }
 
         const tick = () => {
             const now = Date.now();
-            const diff = Math.max(0, sessionData.timerEndTime! - now);
+            const diff = Math.max(0, sessionData.timerEnd! - now);
             const seconds = Math.floor(diff / 1000);
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
@@ -66,7 +66,7 @@ const WidgetPreview: React.FC = () => {
         tick();
         const t = setInterval(tick, 1000);
         return () => clearInterval(t);
-    }, [sessionData?.timerEndTime]);
+    }, [sessionData?.timerEnd]);
 
     return (
         <div className="w-full max-w-md flex flex-col gap-8 pb-20 animate-in fade-in h-screen overflow-y-auto">
@@ -126,7 +126,7 @@ const WidgetPreview: React.FC = () => {
                                     <div className="flex flex-col flex-1">
                                         <span className="text-[8px] font-black uppercase text-[#00FF41] tracking-widest leading-none">TREINO ATIVO</span>
                                         <h3 className="text-base font-black italic uppercase text-white tracking-tight mt-1 truncate max-w-[150px]">
-                                            {sessionData.exerciseName}
+                                            {sessionData.exercise}
                                         </h3>
                                     </div>
                                     <div className="text-right min-w-[80px]">
@@ -153,7 +153,7 @@ const WidgetPreview: React.FC = () => {
                                     <div className="text-right flex flex-col items-end">
                                         <span className="text-[8px] font-black uppercase text-zinc-600 leading-none">PRÓXIMO</span>
                                         <p className="text-[10px] font-black uppercase text-zinc-400 mt-1 truncate max-w-[140px]">
-                                            {sessionData.nextExerciseName || 'FIM DO TREINO'}
+                                            {sessionData.next || 'FIM DO TREINO'}
                                         </p>
                                     </div>
                                 </div>

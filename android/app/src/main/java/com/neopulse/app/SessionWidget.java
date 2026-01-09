@@ -41,23 +41,30 @@ public class SessionWidget extends AppWidgetProvider {
                 views.setTextViewText(R.id.session_sets_info, "SÉRIE " + currentSet + " / " + totalSets);
                 views.setTextViewText(R.id.session_next_exercise, "PRÓXIMO: " + next.toUpperCase());
 
-                if (timerEnd > System.currentTimeMillis()) {
-                    long duration = timerEnd - System.currentTimeMillis();
+                long now = System.currentTimeMillis();
+                if (timerEnd > now) {
+                    long durationMs = timerEnd - now;
+                    long baseTime = SystemClock.elapsedRealtime() + durationMs;
+                    
+                    Log.d("SessionWidget", "Timer Active. Duration: " + (durationMs/1000) + "s. Base: " + baseTime);
+                    
                     views.setViewVisibility(R.id.session_timer, View.VISIBLE);
                     views.setViewVisibility(R.id.session_timer_static, View.GONE);
-                    views.setChronometer(R.id.session_timer, SystemClock.elapsedRealtime() + duration, null, true);
+                    views.setChronometer(R.id.session_timer, baseTime, null, true);
                     views.setChronometerCountDown(R.id.session_timer, true);
                 } else {
+                    Log.d("SessionWidget", "Timer Inactive or Expired. timerEnd: " + timerEnd + ", now: " + now);
                     views.setViewVisibility(R.id.session_timer, View.GONE);
                     views.setViewVisibility(R.id.session_timer_static, View.VISIBLE);
                     views.setTextViewText(R.id.session_timer_static, "00:00");
                 }
 
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e("SessionWidget", "JSON Parse Error", e);
             }
         } else {
-            views.setTextViewText(R.id.session_exercise_name, "TREINO");
+            Log.d("SessionWidget", "No session data found in CapacitorStorage");
+            views.setTextViewText(R.id.session_exercise_name, "NEOPULSE");
             views.setTextViewText(R.id.session_sets_info, "---");
             views.setViewVisibility(R.id.session_timer, View.GONE);
             views.setViewVisibility(R.id.session_timer_static, View.VISIBLE);

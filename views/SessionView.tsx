@@ -86,7 +86,7 @@ const SessionView: React.FC = () => {
         if (isActive && !isStopwatch) {
             NotificationService.showStickyNotification(
                 `Treino: ${currentExercise?.name}`,
-                `Série ${currentSetIndex + 1} | Descanso: ${timeLeft}s`,
+                `Série ${currentSetIndex + 1} | Descanso Ativo`,
                 !isActive,
                 1001,
                 'neopulse_ticker'
@@ -101,7 +101,7 @@ const SessionView: React.FC = () => {
         } else if (isActive && isStopwatch) {
             NotificationService.showStickyNotification(
                 `Treino: ${currentExercise?.name}`,
-                `Cronômetro: ${stopwatchTime}s`,
+                `Cronômetro Ativo`,
                 !isActive,
                 1001,
                 'neopulse_ticker'
@@ -110,17 +110,30 @@ const SessionView: React.FC = () => {
         } else if (!isActive && currentExercise && hasRestored) {
             NotificationService.showStickyNotification(
                 `Pausado: ${currentExercise?.name}`,
-                isStopwatch ? `Cronômetro: ${stopwatchTime}s` : `Série ${currentSetIndex + 1} | Pausado em ${timeLeft}s`,
+                isStopwatch ? `Cronômetro Pausado` : `Série ${currentSetIndex + 1} | Pausado`,
                 true,
                 1001,
                 'neopulse_ticker'
             );
         }
 
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [isActive, timeLeft, stopwatchTime, isStopwatch, currentExercise, currentSetIndex, hasRestored]);
+    }, [isActive, isStopwatch, currentExercise, currentSetIndex, hasRestored]);
+
+    // Timer Interval Only
+    useEffect(() => {
+        let interval: any = null;
+        if (isActive) {
+            if (isStopwatch) {
+                interval = setInterval(() => setStopwatchTime(prev => prev + 1), 1000);
+            } else if (timeLeft > 0) {
+                interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+            } else {
+                setIsActive(false);
+                scheduleAlert();
+            }
+        }
+        return () => { if (interval) clearInterval(interval); };
+    }, [isActive, isStopwatch, timeLeft]);
 
     // Persistence: Restore state
     useEffect(() => {
@@ -569,7 +582,21 @@ const SessionView: React.FC = () => {
                         isActive={isActive}
                         isStopwatch={isStopwatch}
                         duration={isStopwatch ? 0 : (currentExercise.restTimes[currentSetIndex] || 60)}
-                        onToggle={() => setIsActive(!isActive)}
+                        onToggle={() => {
+                            const newActive = !isActive;
+                            setIsActive(newActive);
+
+                            // Sync widget on manual toggle
+                            if (exercises) {
+                                WidgetService.syncSession({
+                                    exercise: currentExercise.name,
+                                    next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                                    currentSet: currentSetIndex + 1,
+                                    totalSets: currentExercise.restTimes.length + 1,
+                                    timerEnd: newActive && !isStopwatch ? Date.now() + (timeLeft * 1000) : null
+                                });
+                            }
+                        }}
                         onReset={() => {
                             setIsActive(false);
                             if (isStopwatch) setStopwatchTime(0);
@@ -636,10 +663,6 @@ const SessionView: React.FC = () => {
             {modals}
         </div>
     );
-
-    function currentExercisesCount() {
-        return currentExerciseIndex + 1;
-    }
 };
 
 export default SessionView;

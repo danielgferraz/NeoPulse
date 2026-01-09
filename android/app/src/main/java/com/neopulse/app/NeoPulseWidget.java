@@ -7,6 +7,7 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.widget.RemoteViews;
+import android.util.Log;
 import org.json.JSONObject;
 
 public class NeoPulseWidget extends AppWidgetProvider {
@@ -25,6 +26,7 @@ public class NeoPulseWidget extends AppWidgetProvider {
 
         if (widgetDataStr != null) {
             try {
+                Log.d("NeoPulseWidget", "Widget Data Found: " + widgetDataStr);
                 JSONObject data = new JSONObject(widgetDataStr);
                 int count = data.optInt("count", 0);
                 int goal = data.optInt("goal", 12);
@@ -34,11 +36,12 @@ public class NeoPulseWidget extends AppWidgetProvider {
                 views.setTextViewText(R.id.widget_monthly_count, count + " / " + goal + " TREINOS");
                 views.setProgressBar(R.id.widget_progress, goal, Math.min(count, goal), false);
                 views.setTextViewText(R.id.widget_last_weight, "PESO: " + weight + " KG");
+                Log.d("NeoPulseWidget", "Widget UI Updated: " + count + "/" + goal);
             } catch (Exception e) {
-                android.util.Log.e("NeoPulseWidget", "Error parsing widget data", e);
+                Log.e("NeoPulseWidget", "Error parsing widget data", e);
             }
         } else {
-            android.util.Log.d("NeoPulseWidget", "No widget data found in SharedPreferences");
+            Log.d("NeoPulseWidget", "No data found for key 'neopulse_widget_data' in CapacitorStorage");
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views);

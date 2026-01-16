@@ -168,6 +168,14 @@ const SettingsView: React.FC = () => {
                             </div>
                         </button>
                         <div className="h-px bg-zinc-800 mx-4"></div>
+                        <button onClick={() => navigate('/library')} className="w-full text-left p-4 rounded-xl hover:bg-zinc-800 flex items-center gap-3 text-zinc-300 transition-colors">
+                            <i className="fa-solid fa-book text-[#00FF41]"></i>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold">Gerenciar Biblioteca</span>
+                                <span className="text-[10px] text-zinc-500">Ver e gerenciar exercícios padrão</span>
+                            </div>
+                        </button>
+                        <div className="h-px bg-zinc-800 mx-4"></div>
                         <div className="p-4">
                             <UpdateChecker />
                         </div>

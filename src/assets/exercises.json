@@ -1,0 +1,122 @@
+[
+    {
+        "id": "bench_press",
+        "name": "Supino Reto (Barra)",
+        "muscleGroup": "Peito",
+        "defaultRestTime": 90,
+        "icon": "Dumbbell",
+        "videoUrl": "https://www.youtube.com/results?search_query=supino+reto+barra+execucao"
+    },
+    {
+        "id": "incline_bench_press",
+        "name": "Supino Inclinado (Halteres)",
+        "muscleGroup": "Peito",
+        "defaultRestTime": 90,
+        "icon": "Dumbbell",
+        "videoUrl": "https://www.youtube.com/results?search_query=supino+inclinado+halteres+execucao"
+    },
+    {
+        "id": "chest_fly",
+        "name": "Crucifixo (Peck Deck)",
+        "muscleGroup": "Peito",
+        "defaultRestTime": 60,
+        "icon": "Activity",
+        "videoUrl": "https://www.youtube.com/results?search_query=peck+deck+execucao"
+    },
+    {
+        "id": "pull_up",
+        "name": "Barra Fixa",
+        "muscleGroup": "Costas",
+        "defaultRestTime": 120,
+        "icon": "ArrowUpCircle",
+        "videoUrl": "https://www.youtube.com/results?search_query=barra+fixa+execucao"
+    },
+    {
+        "id": "lat_pulldown",
+        "name": "Puxada Alta (Polia)",
+        "muscleGroup": "Costas",
+        "defaultRestTime": 90,
+        "icon": "ArrowDownCircle",
+        "videoUrl": "https://www.youtube.com/results?search_query=puxada+alta+polia+execucao"
+    },
+    {
+        "id": "seated_row",
+        "name": "Remada Baixa",
+        "muscleGroup": "Costas",
+        "defaultRestTime": 90,
+        "icon": "ArrowRightCircle",
+        "videoUrl": "https://www.youtube.com/results?search_query=remada+baixa+triangulo+execucao"
+    },
+    {
+        "id": "squat",
+        "name": "Agachamento Livre",
+        "muscleGroup": "Pernas",
+        "defaultRestTime": 120,
+        "icon": "MoveDown",
+        "videoUrl": "https://www.youtube.com/results?search_query=agachamento+livre+execucao"
+    },
+    {
+        "id": "leg_press",
+        "name": "Leg Press 45°",
+        "muscleGroup": "Pernas",
+        "defaultRestTime": 90,
+        "icon": "MoveUpRight",
+        "videoUrl": "https://www.youtube.com/results?search_query=leg+press+45+execucao"
+    },
+    {
+        "id": "leg_extension",
+        "name": "Cadeira Extensora",
+        "muscleGroup": "Pernas",
+        "defaultRestTime": 60,
+        "icon": "Maximize2",
+        "videoUrl": "https://www.youtube.com/results?search_query=cadeira+extensora+execucao"
+    },
+    {
+        "id": "shoulder_press",
+        "name": "Desenvolvimento (Halteres)",
+        "muscleGroup": "Ombros",
+        "defaultRestTime": 90,
+        "icon": "ArrowUp",
+        "videoUrl": "https://www.youtube.com/results?search_query=desenvolvimento+halteres+execucao"
+    },
+    {
+        "id": "lateral_raise",
+        "name": "Elevação Lateral",
+        "muscleGroup": "Ombros",
+        "defaultRestTime": 60,
+        "icon": "MoveHorizontal",
+        "videoUrl": "https://www.youtube.com/results?search_query=elevacao+lateral+execucao"
+    },
+    {
+        "id": "bicep_curl",
+        "name": "Rosca Direta (Barra)",
+        "muscleGroup": "Bíceps",
+        "defaultRestTime": 60,
+        "icon": "Activity",
+        "videoUrl": "https://www.youtube.com/results?search_query=rosca+direta+barra+execucao"
+    },
+    {
+        "id": "tricep_pushdown",
+        "name": "Tríceps Pulley (Corda)",
+        "muscleGroup": "Tríceps",
+        "defaultRestTime": 60,
+        "icon": "ArrowDown",
+        "videoUrl": "https://www.youtube.com/results?search_query=triceps+corda+execucao"
+    },
+    {
+        "id": "plank",
+        "name": "Prancha Abdominal",
+        "muscleGroup": "Abdômen",
+        "defaultRestTime": 45,
+        "icon": "Minus",
+        "videoUrl": "https://www.youtube.com/results?search_query=prancha+abdominal+execucao"
+    },
+    {
+        "id": "crunches",
+        "name": "Abdominal Supra",
+        "muscleGroup": "Abdômen",
+        "defaultRestTime": 45,
+        "icon": "RotateCcw",
+        "videoUrl": "https://www.youtube.com/results?search_query=abdominal+supra+execucao"
+    }
+]

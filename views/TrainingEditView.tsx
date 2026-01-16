@@ -275,9 +275,22 @@ const TrainingEditView: React.FC = () => {
                 ))}
             </div>
 
-            <button onClick={addExercise} className="w-full py-4 rounded-2xl border border-dashed border-zinc-700 text-zinc-500 font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all">
-                + Adicionar Exercício
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+                <button
+                    onClick={() => navigate(`/library?mode=select&trainingId=${trainingId}`)}
+                    className="w-full py-4 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold uppercase tracking-wide hover:bg-zinc-800 hover:text-white hover:border-[#00FF41] transition-all flex flex-col items-center gap-2"
+                >
+                    <i className="fa-solid fa-book-open text-[#00FF41] text-xl"></i>
+                    <span className="text-[10px]">Da Biblioteca</span>
+                </button>
+                <button
+                    onClick={addExercise}
+                    className="w-full py-4 rounded-2xl border border-dashed border-zinc-700 text-zinc-500 font-bold uppercase tracking-wide hover:bg-zinc-900 hover:text-white transition-all flex flex-col items-center gap-2"
+                >
+                    <i className="fa-solid fa-plus text-zinc-500 text-xl"></i>
+                    <span className="text-[10px]">Manual</span>
+                </button>
+            </div>
 
             <div className="mt-10 border-t border-zinc-900 pt-6">
                 <button onClick={deleteTraining} className="w-full py-3 rounded-xl bg-red-950/20 text-red-800 text-xs font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all">

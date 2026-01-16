@@ -6,6 +6,7 @@ import TrainingEditView from './views/TrainingEditView';
 import SessionView from './views/SessionView';
 import SummaryView from './views/SummaryView';
 import SettingsView from './views/SettingsView';
+import LibraryView from './views/LibraryView';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { ThemeProvider } from './contexts/ThemeContext';
 import WidgetPreview from './components/preview/WidgetPreview';
@@ -62,6 +63,7 @@ const App: React.FC = () => {
               <Route path="/session/:id" element={<SessionView />} />
               <Route path="/summary" element={<SummaryView />} />
               <Route path="/settings" element={<SettingsView />} />
+              <Route path="/library" element={<LibraryView />} />
               <Route path="/preview" element={<WidgetPreview />} />
             </Routes>
           </div>

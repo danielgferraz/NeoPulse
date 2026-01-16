@@ -30,11 +30,21 @@ export interface WeightLog {
     timestamp: number;
 }
 
+export interface LibraryExercise {
+    id: string; // 'bench_press'
+    name: string;
+    muscleGroup: string;
+    defaultRestTime: number;
+    videoUrl?: string; // YouTube link
+    icon?: string; // Lucide icon name
+}
+
 class NeoPulseDB extends Dexie {
     trainings!: Table<Training>;
     exercises!: Table<Exercise>;
     history!: Table<HistoryItem>;
     weightLogs!: Table<WeightLog>;
+    library!: Table<LibraryExercise>;
 
     constructor() {
         super('NeoPulseDB');
@@ -46,9 +56,18 @@ class NeoPulseDB extends Dexie {
         this.version(2).stores({
             weightLogs: '++id, timestamp'
         });
+        this.version(5).stores({
+            library: 'id, muscleGroup, name'
+        });
     }
 
     async seed() {
+        // Migration safety check - ensure library exists before accessing
+        if (!this.library) {
+            console.error("Critical: Library table not found even after version bump.");
+            return;
+        }
+
         const count = await this.trainings.count();
         if (count === 0) {
             const tid = await this.trainings.add({ name: 'Treino A - Peito/Tríceps', order: 0 });
@@ -65,6 +84,20 @@ class NeoPulseDB extends Dexie {
                 { trainingId: tid2, name: 'Remada Baixa', restTimes: [90, 90, 90], order: 1, reps: '8-12' },
                 { trainingId: tid2, name: 'Rosca Direta', restTimes: [60, 60, 60], order: 2, reps: '10-12' },
             ]);
+        }
+
+        // Library Seed
+        try {
+            const libraryCount = await this.library.count();
+            if (libraryCount === 0) {
+                // Dynamic import to avoid bundling issues if possible, though standard import is fine too
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const exerciseData = (await import('../assets/exercises.json')).default;
+                await this.library.bulkAdd(exerciseData);
+                console.log('Exercise Library Seeded:', exerciseData.length + ' items');
+            }
+        } catch (error) {
+            console.error('Failed to seed exercise library:', error);
         }
     }
 }

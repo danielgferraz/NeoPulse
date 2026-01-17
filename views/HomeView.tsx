@@ -103,7 +103,8 @@ const HomeView: React.FC = () => {
                         next: session.next || '---',
                         currentSet: session.setIndex + 1,
                         totalSets: session.totalSets || 1,
-                        timerEnd: session.isActive && !session.isStopwatch ? (session.lastTimestamp + session.timeLeft * 1000) : null
+                        timerEnd: session.isActive && !session.isStopwatch ? (session.lastTimestamp + session.timeLeft * 1000) : null,
+                        timerStart: session.isActive && session.isStopwatch ? (session.stopwatchTime ? (Date.now() - session.stopwatchTime * 1000) : null) : null
                     });
                 }
             } else {
@@ -374,12 +375,22 @@ const HomeView: React.FC = () => {
                             {new Date(selectedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
                         </p>
                         {getTrainingsForDate(new Date(selectedDate)).length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {Array.from(new Set(getTrainingsForDate(new Date(selectedDate)).map(h => h.trainingName))).map((name, i) => (
-                                    <span key={i} className="px-2 py-1 bg-zinc-800 rounded-lg text-xs font-bold text-white flex items-center gap-1">
-                                        <i className="fa-solid fa-check-double text-[8px]" style={{ color: theme.primary }}></i>
-                                        {name}
-                                    </span>
+                            <div className="flex flex-col gap-2">
+                                {getTrainingsForDate(new Date(selectedDate)).map((h, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => navigate(`/summary?tid=0`, { state: { history: h.details || [] } })} // tid=0 as fallback, primarily using state
+                                        className="px-4 py-3 bg-zinc-800 rounded-xl text-xs font-bold text-white flex items-center justify-between w-full active:scale-95 transition-transform"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <i className="fa-solid fa-check-double text-[10px]" style={{ color: theme.primary }}></i>
+                                            <span className="uppercase tracking-wide">{h.trainingName}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 opacity-50">
+                                            <span className="text-[10px] uppercase font-bold">{h.sets} Séries</span>
+                                            <i className="fa-solid fa-chevron-right text-[8px]"></i>
+                                        </div>
+                                    </button>
                                 ))}
                             </div>
                         ) : (

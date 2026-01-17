@@ -36,27 +36,51 @@ public class SessionWidget extends AppWidgetProvider {
                 int currentSet = data.optInt("currentSet", 0);
                 int totalSets = data.optInt("totalSets", 0);
                 long timerEnd = data.optLong("timerEnd", 0);
+                long timerStart = data.optLong("timerStart", 0);
 
                 views.setTextViewText(R.id.session_exercise_name, exercise.toUpperCase());
                 views.setTextViewText(R.id.session_sets_info, "SÉRIE " + currentSet + " / " + totalSets);
                 views.setTextViewText(R.id.session_next_exercise, "PRÓXIMO: " + next.toUpperCase());
 
                 long now = System.currentTimeMillis();
+                long elapsedRealtime = SystemClock.elapsedRealtime();
+
+                // 1. Logic for REST TIMER (Countdown)
                 if (timerEnd > now) {
                     long durationMs = timerEnd - now;
-                    long baseTime = SystemClock.elapsedRealtime() + durationMs;
+                    long baseTime = elapsedRealtime + durationMs;
                     
-                    Log.d("SessionWidget", "Timer Active. Duration: " + (durationMs/1000) + "s. Base: " + baseTime);
+                    Log.d("SessionWidget", "Mode: COUNTDOWN. Duration: " + (durationMs/1000) + "s.");
                     
                     views.setViewVisibility(R.id.session_timer, View.VISIBLE);
                     views.setViewVisibility(R.id.session_timer_static, View.GONE);
                     views.setChronometer(R.id.session_timer, baseTime, null, true);
                     views.setChronometerCountDown(R.id.session_timer, true);
+                
+                // 2. Logic for STOPWATCH (CountUp)
+                } else if (timerStart > 0) {
+                     long elapsedMs = now - timerStart;
+                     // Base for CountUp: The time when it would have been 0.
+                     // realTime = base + (realTime - base)
+                     // displayed = realtime - base
+                     // We want displayed = elapsedMs
+                     // So: elapsedMs = realtime - base
+                     // base = realtime - elapsedMs
+                     long baseTime = elapsedRealtime - elapsedMs;
+
+                     Log.d("SessionWidget", "Mode: STOPWATCH. Elapsed: " + (elapsedMs/1000) + "s.");
+
+                     views.setViewVisibility(R.id.session_timer, View.VISIBLE);
+                     views.setViewVisibility(R.id.session_timer_static, View.GONE);
+                     views.setChronometer(R.id.session_timer, baseTime, null, true);
+                     views.setChronometerCountDown(R.id.session_timer, false);
+
+                // 3. Static State (Paused or Inactive)
                 } else {
-                    Log.d("SessionWidget", "Timer Inactive or Expired. timerEnd: " + timerEnd + ", now: " + now);
+                    Log.d("SessionWidget", "Timer Inactive. timerEnd: " + timerEnd + ", timerStart: " + timerStart);
                     views.setViewVisibility(R.id.session_timer, View.GONE);
                     views.setViewVisibility(R.id.session_timer_static, View.VISIBLE);
-                    views.setTextViewText(R.id.session_timer_static, "00:00");
+                    views.setTextViewText(R.id.session_timer_static, "--:--");
                 }
 
             } catch (Exception e) {

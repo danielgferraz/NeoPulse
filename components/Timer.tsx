@@ -89,7 +89,8 @@ const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, o
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const percentage = isStopwatch ? 0 : (timeLeft / duration) * 100;
+  const isOvertime = !isStopwatch && timeLeft > duration;
+  const percentage = isStopwatch ? 0 : (isOvertime ? ((timeLeft - duration) / duration) * 100 : (timeLeft / duration) * 100);
   const isUrgent = timeLeft <= 10 && timeLeft > 0;
 
   const size = 272;
@@ -100,11 +101,11 @@ const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, o
   return (
     <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto select-none">
       <div className="relative flex items-center justify-center mb-8" style={{ width: size, height: size }}>
-        <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-1000 opacity-20 ${isActive ? (isUrgent ? 'bg-red-500 scale-110' : 'bg-[#00FF41] scale-105') : 'bg-transparent'
+        <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-1000 opacity-20 ${isActive ? (isUrgent ? 'bg-red-500 scale-110' : (isOvertime ? 'bg-purple-500 scale-105' : 'bg-[#00FF41] scale-105')) : 'bg-transparent'
           }`} />
 
         <svg viewBox={`0 0 ${size} ${size}`} className="absolute w-full h-full -rotate-90">
-          <circle cx={center} cy={center} r={radius} stroke="#111" strokeWidth="4" fill="transparent" />
+          <circle cx={center} cy={center} r={radius} stroke={isOvertime ? "#00FF41" : "#111"} strokeWidth="4" fill="transparent" className="transition-colors duration-300" />
           <circle
             cx={center}
             cy={center}
@@ -115,14 +116,14 @@ const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, o
             strokeDasharray={circumference}
             strokeDashoffset={circumference - (circumference * Math.min(percentage, 100)) / 100}
             strokeLinecap="round"
-            className={`transition-all duration-1000 ease-linear ${isUrgent ? 'text-red-500' : (timeLeft > duration ? 'text-purple-500' : 'text-[#00FF41]')
+            className={`transition-all duration-1000 ease-linear ${isUrgent ? 'text-red-500' : (isOvertime ? 'text-purple-500' : 'text-[#00FF41]')
               }`}
           />
         </svg>
 
         <div className="flex flex-col items-center justify-center z-10 w-full">
           <span className={`text-8xl mono font-black tracking-tighter transition-colors ${isUrgent ? 'text-red-500' : 'text-white'}`}>
-            {formatTime(timeLeft)}
+            {formatTime(Math.max(0, timeLeft))}
           </span>
           <span className="text-[10px] font-black text-zinc-600 tracking-[0.4em] uppercase mt-1">
             {isActive ? 'DESCANSO' : 'PRONTO'}

@@ -22,6 +22,7 @@ export interface HistoryItem {
     sets: number;
     timestamp: number;
     trainingName: string;
+    details?: { name: string; sets: number; }[];
 }
 
 export interface WeightLog {
@@ -56,8 +57,8 @@ class NeoPulseDB extends Dexie {
         this.version(2).stores({
             weightLogs: '++id, timestamp'
         });
-        this.version(5).stores({
-            library: 'id, muscleGroup, name'
+        this.version(6).stores({
+            history: '++id, timestamp' // No schema change needed for non-indexed fields, but bumping version for clarity/safety
         });
     }
 

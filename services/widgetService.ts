@@ -13,7 +13,7 @@ export const WidgetService = {
         }
     },
 
-    async syncSession(data: { exercise: string; next: string; currentSet: number; totalSets: number; timerEnd: number | null } | null) {
+    async syncSession(data: { exercise: string; next: string; currentSet: number; totalSets: number; timerEnd: number | null; timerStart: number | null } | null) {
         try {
             console.log('Syncing Widget Session:', data);
             if (data === null) {

@@ -1,66 +1,118 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { db } from '../services/db';
+
+interface HistoryItem {
+    name: string;
+    sets: number;
+    totalDuration?: number;
+}
 
 const SummaryView: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { theme } = useTheme();
     const trainingId = parseInt(searchParams.get('tid') || '0');
+    const [history, setHistory] = useState<HistoryItem[]>([]);
 
     // Stats
     const [trainingName, setTrainingName] = useState('');
     const [totalExercises, setTotalExercises] = useState(0);
     const [totalSets, setTotalSets] = useState(0);
-    const [duration] = useState(searchParams.get('dur') || '00:00'); // Passed via URL for simplicity or calculate from history timestamps
 
     useEffect(() => {
         const loadStats = async () => {
             const training = await db.trainings.get(trainingId);
             if (training) setTrainingName(training.name);
 
-            // Get history items added "just now" (last 2 hours maybe? or just pass count)
-            // For now, let's just count total exercises in that training
-            const exercises = await db.exercises.where('trainingId').equals(trainingId).toArray();
-            setTotalExercises(exercises.length);
+            // Check if history was passed via state
+            if (location.state && location.state.history) {
+                const passedHistory = location.state.history as HistoryItem[];
+                setHistory(passedHistory);
+                setTotalExercises(passedHistory.length);
+                setTotalSets(passedHistory.reduce((acc, h) => acc + h.sets, 0));
+            } else {
+                // Fallback: Estimate from DB (Classic Logic)
+                const exercises = await db.exercises.where('trainingId').equals(trainingId).toArray();
+                setTotalExercises(exercises.length);
+                const sets = exercises.reduce((acc, ex) => acc + ex.restTimes.length, 0);
+                setTotalSets(sets);
 
-            // Estimate sets
-            const sets = exercises.reduce((acc, ex) => acc + ex.restTimes.length, 0);
-            setTotalSets(sets);
+                // Retrieve names for fallback list (though sets might be inaccurate if not tracked)
+                setHistory(exercises.map(ex => ({
+                    name: ex.name,
+                    sets: ex.restTimes.length
+                })));
+            }
         };
         loadStats();
-    }, [trainingId]);
+    }, [trainingId, location.state]);
 
     return (
-        <div className="w-full max-w-md flex flex-col items-center justify-center min-h-[80vh] animate-in zoom-in duration-500 p-6 text-center">
+        <div className="w-full h-screen overflow-y-auto flex flex-col items-center p-6 text-center animate-in zoom-in duration-500 pb-20">
 
-            <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-bounce"
-                style={{ backgroundColor: theme.primary, boxShadow: `0 0 50px ${theme.primary}60` }}>
-                <i className="fa-solid fa-trophy text-black text-4xl"></i>
+            <div className="mt-8 mb-6 relative">
+                <div className="absolute inset-0 rounded-full blur-xl opacity-50 animate-pulse"
+                    style={{ backgroundColor: theme.primary }}></div>
+                <div className="w-24 h-24 rounded-full flex items-center justify-center relative z-10 bg-zinc-900 border-2"
+                    style={{ borderColor: theme.primary }}>
+                    <i className="fa-solid fa-trophy text-3xl" style={{ color: theme.primary }}></i>
+                </div>
             </div>
 
             <h1 className="text-4xl font-black uppercase italic text-white mb-2 tracking-tighter">Treino Concluído!</h1>
-            <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-10">Você destruiu o {trainingName}</p>
+            <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs mb-8">
+                {trainingName ? `Você destruiu o ${trainingName}` : 'Treino Finalizado'}
+            </p>
 
-            <div className="grid grid-cols-2 gap-4 w-full mb-10">
-                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-3xl flex flex-col items-center">
-                    <span className="text-2xl font-black text-white">{totalExercises}</span>
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Exercícios</span>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-8">
+                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-3xl flex flex-col items-center backdrop-blur-sm">
+                    <span className="text-3xl font-black text-white">{totalExercises}</span>
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mt-1">Exercícios</span>
                 </div>
-                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-3xl flex flex-col items-center">
-                    <span className="text-2xl font-black text-white">{totalSets}</span>
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Séries Totais</span>
+                <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-3xl flex flex-col items-center backdrop-blur-sm">
+                    <span className="text-3xl font-black text-white">{totalSets}</span>
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mt-1">Séries</span>
                 </div>
             </div>
 
-            <button
-                onClick={() => navigate('/')}
-                style={{ backgroundColor: theme.primary, boxShadow: `0 0 20px ${theme.primary}40` }}
-                className="w-full py-4 rounded-2xl text-black font-black uppercase tracking-widest text-lg hover:scale-105 transition-transform"
-            >
-                Voltar para Home
-            </button>
+            {/* History List */}
+            <div className="w-full max-w-sm flex-1 flex flex-col gap-3 mb-8">
+                <h2 className="text-left text-xs font-black text-zinc-600 uppercase tracking-widest ml-2 mb-2">Resumo da Sessão</h2>
+
+                {history.length === 0 ? (
+                    <div className="text-zinc-500 text-sm italic">Nenhum exercício registrado detalhadamente.</div>
+                ) : (
+                    history.map((item, idx) => (
+                        <div key={idx} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl flex items-center justify-between text-left">
+                            <div>
+                                <h3 className="text-white font-bold text-sm uppercase tracking-tight">{item.name}</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-bold uppercase">
+                                        {item.sets} {item.sets === 1 ? 'Série' : 'Séries'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                                <i className="fa-solid fa-check text-green-500 text-xs"></i>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            <div className="fixed bottom-6 left-0 right-0 px-6 max-w-sm mx-auto w-full">
+                <button
+                    onClick={() => navigate('/')}
+                    style={{ backgroundColor: theme.primary, boxShadow: `0 0 20px ${theme.primary}40` }}
+                    className="w-full py-4 rounded-2xl text-black font-black uppercase tracking-widest text-lg hover:scale-105 transition-transform active:scale-95"
+                >
+                    Voltar para Home
+                </button>
+            </div>
         </div>
     );
 };

@@ -70,7 +70,7 @@ const WorkoutPreview = ({ trainingId, onClose, navigate, theme }: { trainingId: 
 
 const HomeView: React.FC = () => {
     const trainings = useLiveQuery(() => db.trainings.orderBy('order').toArray());
-    const history = useLiveQuery(() => db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray());
+    const workoutHistory = useLiveQuery(() => db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray());
     const weightLogs = useLiveQuery(() => db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray());
     const navigate = useNavigate();
     const { theme, monthlyGoal } = useTheme();
@@ -82,9 +82,9 @@ const HomeView: React.FC = () => {
 
     // Widget Sync & Persistent Session Check
     React.useEffect(() => {
-        if (history && monthlyGoal !== undefined) {
+        if (workoutHistory && monthlyGoal !== undefined) {
             WidgetService.sync({
-                count: history.length,
+                count: workoutHistory.length,
                 goal: monthlyGoal,
                 weight: weightLogs?.[0]?.weight?.toString() || '---'
             });
@@ -112,7 +112,7 @@ const HomeView: React.FC = () => {
             }
         };
         checkActive();
-    }, [history, monthlyGoal, weightLogs, trainings]);
+    }, [workoutHistory, monthlyGoal, weightLogs, trainings]);
 
     const logWeight = async () => {
         const val = parseFloat(weightInput.replace(',', '.'));
@@ -122,7 +122,7 @@ const HomeView: React.FC = () => {
             setShowWeightInput(false);
             // Trigger manual sync for widget
             WidgetService.sync({
-                count: history?.length || 0,
+                count: workoutHistory?.length || 0,
                 goal: monthlyGoal,
                 weight: val.toString()
             });
@@ -155,6 +155,27 @@ const HomeView: React.FC = () => {
 
             await db.exercises.bulkAdd(newExercises);
         }
+    };
+
+    const moveTraining = async (id: number, direction: 'up' | 'down') => {
+        if (!trainings) return;
+        const index = trainings.findIndex(t => t.id === id);
+        if (index === -1) return;
+
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= trainings.length) return;
+
+        const currentTraining = trainings[index];
+        const targetTraining = trainings[targetIndex];
+
+        // Ensure orders are defined
+        const currentOrder = currentTraining.order ?? index;
+        const targetOrder = targetTraining.order ?? targetIndex;
+
+        await db.transaction('rw', db.trainings, async () => {
+            await db.trainings.update(currentTraining.id!, { order: targetOrder });
+            await db.trainings.update(targetTraining.id!, { order: currentOrder });
+        });
     };
 
     const exportData = async () => {
@@ -209,11 +230,11 @@ const HomeView: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
     const hasTrainingOnDate = (date: Date) => {
-        return history?.some(h => new Date(h.timestamp).toDateString() === date.toDateString());
+        return workoutHistory?.some(h => new Date(h.timestamp).toDateString() === date.toDateString());
     };
 
     const getTrainingsForDate = (date: Date) => {
-        return history?.filter(h => new Date(h.timestamp).toDateString() === date.toDateString()) || [];
+        return workoutHistory?.filter(h => new Date(h.timestamp).toDateString() === date.toDateString()) || [];
     };
 
     const [showSelection, setShowSelection] = useState(false);
@@ -321,7 +342,7 @@ const HomeView: React.FC = () => {
             <div className="bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800">
                 <div className="flex justify-between items-center mb-3">
                     <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500">Frequência (14 dias)</span>
-                    <span className="text-[10px] font-black text-white">{history?.length || 0} treinos mês</span>
+                    <span className="text-[10px] font-black text-white">{workoutHistory?.length || 0} treinos mês</span>
                 </div>
 
                 {/* Monthly Goal Progress */}
@@ -331,15 +352,15 @@ const HomeView: React.FC = () => {
                             <circle cx="24" cy="24" r="20" fill="transparent" stroke="currentColor" strokeWidth="4" className="text-zinc-800" />
                             <circle cx="24" cy="24" r="20" fill="transparent" stroke="currentColor" strokeWidth="4"
                                 strokeDasharray={126}
-                                strokeDashoffset={126 - (126 * Math.min(100, ((history?.length || 0) / monthlyGoal) * 100)) / 100}
+                                strokeDashoffset={126 - (126 * Math.min(100, ((workoutHistory?.length || 0) / monthlyGoal) * 100)) / 100}
                                 style={{ color: theme.primary }}
                                 className="transition-all duration-1000" />
                         </svg>
-                        <span className="absolute text-[10px] font-black text-white">{Math.round(((history?.length || 0) / monthlyGoal) * 100)}%</span>
+                        <span className="absolute text-[10px] font-black text-white">{Math.round(((workoutHistory?.length || 0) / monthlyGoal) * 100)}%</span>
                     </div>
                     <div className="flex-1">
                         <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Meta Mensal</p>
-                        <p className="text-xs text-zinc-300 font-bold">{history?.length || 0} de {monthlyGoal} treinos</p>
+                        <p className="text-xs text-zinc-300 font-bold">{workoutHistory?.length || 0} de {monthlyGoal} treinos</p>
                     </div>
                 </div>
 
@@ -450,7 +471,7 @@ const HomeView: React.FC = () => {
 
             {!activeSession && (
                 <div className="grid grid-cols-1 gap-3">
-                    {trainings?.map((training) => (
+                    {trainings?.map((training, i) => (
                         <div key={training.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl flex justify-between items-center group active:scale-[0.98] transition-transform">
                             <div onClick={() => setPreviewTrainingId(training.id!)} className="flex-1 cursor-pointer">
                                 <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md font-bold tracking-widest uppercase">Pasta</span>
@@ -458,7 +479,24 @@ const HomeView: React.FC = () => {
                                 <p className="text-xs text-zinc-500 mt-1 font-bold">Ver Treino</p>
                             </div>
 
-                            <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 ml-2">
+                            <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 ml-2 items-center">
+                                <div className="flex flex-col gap-1 mb-1">
+                                    <button
+                                        disabled={i === 0}
+                                        onClick={(e) => { e.stopPropagation(); moveTraining(training.id!, 'up'); }}
+                                        className={`w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white hover:border-zinc-600 ${i === 0 ? 'opacity-20 cursor-not-allowed' : ''}`}
+                                    >
+                                        <i className="fa-solid fa-chevron-up text-xs"></i>
+                                    </button>
+                                    <button
+                                        disabled={i === (trainings?.length || 0) - 1}
+                                        onClick={(e) => { e.stopPropagation(); moveTraining(training.id!, 'down'); }}
+                                        className={`w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white hover:border-zinc-600 ${i === (trainings?.length || 0) - 1 ? 'opacity-20 cursor-not-allowed' : ''}`}
+                                    >
+                                        <i className="fa-solid fa-chevron-down text-xs"></i>
+                                    </button>
+                                </div>
+
                                 <button
                                     title="Editar Treino"
                                     onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }}

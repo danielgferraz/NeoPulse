@@ -11,7 +11,8 @@ export interface Exercise {
     trainingId: number;
     name: string;
     restTimes: number[];
-    reps?: string;
+    // reps?: string; // Removed in favor of setReps
+    setReps?: string[]; // Array of reps for each set (e.g. ["12", "10", "8"])
     notes?: string;
     order: number;
 }
@@ -57,8 +58,9 @@ class NeoPulseDB extends Dexie {
         this.version(2).stores({
             weightLogs: '++id, timestamp'
         });
-        this.version(6).stores({
-            history: '++id, timestamp' // No schema change needed for non-indexed fields, but bumping version for clarity/safety
+        this.version(7).stores({
+            history: '++id, timestamp',
+            library: 'id, name, muscleGroup'
         });
     }
 
@@ -73,17 +75,17 @@ class NeoPulseDB extends Dexie {
         if (count === 0) {
             const tid = await this.trainings.add({ name: 'Treino A - Peito/Tríceps', order: 0 });
             await this.exercises.bulkAdd([
-                { trainingId: tid, name: 'Supino Reto', restTimes: [90, 90, 90], order: 0, reps: '8-12', notes: 'Focar na negativa' },
-                { trainingId: tid, name: 'Supino Inclinado', restTimes: [90, 90, 90], order: 1, reps: '8-12' },
-                { trainingId: tid, name: 'Crucifixo', restTimes: [60, 60, 60], order: 2, reps: '10-15' },
-                { trainingId: tid, name: 'Tríceps Polia', restTimes: [60, 60, 60], order: 3, reps: '12-15' },
+                { trainingId: tid, name: 'Supino Reto', restTimes: [90, 90, 90], order: 0, notes: 'Focar na negativa' },
+                { trainingId: tid, name: 'Supino Inclinado', restTimes: [90, 90, 90], order: 1 },
+                { trainingId: tid, name: 'Crucifixo', restTimes: [60, 60, 60], order: 2 },
+                { trainingId: tid, name: 'Tríceps Polia', restTimes: [60, 60, 60], order: 3 },
             ]);
 
             const tid2 = await this.trainings.add({ name: 'Treino B - Costas/Bíceps', order: 1 });
             await this.exercises.bulkAdd([
-                { trainingId: tid2, name: 'Puxada Frente', restTimes: [90, 90, 90], order: 0, reps: '8-12' },
-                { trainingId: tid2, name: 'Remada Baixa', restTimes: [90, 90, 90], order: 1, reps: '8-12' },
-                { trainingId: tid2, name: 'Rosca Direta', restTimes: [60, 60, 60], order: 2, reps: '10-12' },
+                { trainingId: tid2, name: 'Puxada Frente', restTimes: [90, 90, 90], order: 0 },
+                { trainingId: tid2, name: 'Remada Baixa', restTimes: [90, 90, 90], order: 1 },
+                { trainingId: tid2, name: 'Rosca Direta', restTimes: [60, 60, 60], order: 2 },
             ]);
         }
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -7,6 +8,8 @@ import { NotificationService } from '../services/notificationService';
 import { useTheme } from '../contexts/ThemeContext';
 import { WidgetService } from '../services/widgetService';
 import { Preferences } from '@capacitor/preferences';
+import ExerciseEditor from '../components/ExerciseEditor';
+import ExerciseSelector from '../components/ExerciseSelector';
 
 const SessionView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -44,10 +47,11 @@ const SessionView: React.FC = () => {
     const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     const [showFinishConfirm, setShowFinishConfirm] = useState(false);
     const [showCompleteModal, setShowCompleteModal] = useState(false);
+    const [showPlaylist, setShowPlaylist] = useState(false);
+    const [completedIndices, setCompletedIndices] = useState<number[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [addName, setAddName] = useState('');
-    const [addSets, setAddSets] = useState(3);
-    const [addRest, setAddRest] = useState(60);
+
+    // Deleted manual 'newExercise' state as it is now handled by ExerciseSelector
     const lastSessionIndices = useRef({ exercise: -1, set: -1 });
 
     const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
@@ -95,7 +99,7 @@ const SessionView: React.FC = () => {
     useEffect(() => {
         if (isActive && !isStopwatch) {
             NotificationService.showStickyNotification(
-                `Treino: ${currentExercise?.name}`,
+                `Treino: ${currentExercise?.name} `,
                 `Série ${currentSetIndex + 1} | Descanso Ativo`,
                 !isActive,
                 1001,
@@ -103,7 +107,7 @@ const SessionView: React.FC = () => {
             );
         } else if (isActive && isStopwatch) {
             NotificationService.showStickyNotification(
-                `Treino: ${currentExercise?.name}`,
+                `Treino: ${currentExercise?.name} `,
                 `Cronômetro Ativo`,
                 !isActive,
                 1001,
@@ -111,7 +115,7 @@ const SessionView: React.FC = () => {
             );
         } else if (!isActive && currentExercise && hasRestored) {
             NotificationService.showStickyNotification(
-                `Pausado: ${currentExercise?.name}`,
+                `Pausado: ${currentExercise?.name} `,
                 isStopwatch ? `Cronômetro Pausado` : `Série ${currentSetIndex + 1} | Pausado`,
                 true,
                 1001,
@@ -255,7 +259,7 @@ const SessionView: React.FC = () => {
     const scheduleAlert = async () => {
         await NotificationService.showStickyNotification(
             "Tempo Esgotado! 🔔",
-            `Prepare-se para: ${currentExercise?.name}`,
+            `Prepare - se para: ${currentExercise?.name} `,
             false, // isPaused
             2002 // Alert ID
         );
@@ -298,6 +302,8 @@ const SessionView: React.FC = () => {
                 name: currentEx.name,
                 sets: currentEx.restTimes.length
             });
+            // Mark as visually completed in cronograma list
+            setCompletedIndices(prev => [...prev, currentExerciseIndex]);
         }
 
         if (currentExerciseIndex < exercises.length - 1) {
@@ -320,6 +326,7 @@ const SessionView: React.FC = () => {
             });
         } else {
             // Last exercise finished
+            setCompletedIndices(prev => [...prev, currentExerciseIndex]);
             setShowCompleteModal(true);
         }
     };
@@ -373,158 +380,202 @@ const SessionView: React.FC = () => {
         });
     };
 
-    const addFreeExercise = async () => {
-        if (!addName) return;
-
+    const addFreeExercise = async (exerciseToAdd: Exercise) => {
         if (isFreeTraining) {
             // Original behavior: Add to DB (persistent for this "Free Workout" pseudo-list)
-            await db.exercises.add({
-                trainingId: 0,
-                name: addName.toUpperCase(),
-                restTimes: Array(Math.max(0, addSets - 1)).fill(addRest),
-                order: exercises?.length || 0
-            });
+            await db.exercises.add(exerciseToAdd);
         } else {
             // New behavior: Add to local state (session only)
-            const newExercise: Exercise = {
-                trainingId: trainingId,
-                name: addName.toUpperCase(),
-                restTimes: Array(Math.max(0, addSets - 1)).fill(addRest),
-                order: (exercises?.length || 0),
-                notes: 'Sessão atual'
-            };
-            setExtraExercises(prev => [...prev, newExercise]);
+            setExtraExercises(prev => [...prev, exerciseToAdd]);
         }
 
         // If we were in the "Complete" state, continue/resume
         if (showCompleteModal) {
             setShowCompleteModal(false);
-            // Move to the newly added exercise
-            if (exercises) {
-                setCurrentExerciseIndex(exercises.length); // length before add + 1 is index, wait. exercises is from render.
-                // We need to wait for state update? or just trust index.
-                // Actually exercises will update in next render.
-                // The new index will be `exercises.length`.
-                // But we can't switch immediately if exercises isn't updated?
-                // Workaround: set index to what it WILL be.
-                // But standard Effect 'Reset timer' will catch change in exerciseIndex/exercises and reset timer?
-            }
-            setCurrentSetIndex(0);
-            setTimeLeft(60); // Default start time for new exercise?
-            setDuration(60);
         }
 
         setShowAddModal(false);
-        setAddName('');
-        setAddSets(3);
-        setAddRest(60);
-    };
+        // Reset timer logic for new exercise if needed
+        setCurrentSetIndex(0);
+        setTimeLeft(exerciseToAdd.restTimes[0] || 60);
+        setDuration(exerciseToAdd.restTimes[0] || 60);
+    }
 
     function currentExercisesCount() {
         return currentExerciseIndex + 1;
     }
 
+    const jumpToExercise = (index: number) => {
+        if (index === currentExerciseIndex) {
+            setShowPlaylist(false);
+            return;
+        }
+
+        // Save progress of current exercise if needed? 
+        // For now, simpler to just switch. Ideally we might want to "pause" the current one.
+
+        setCurrentExerciseIndex(index);
+        setCurrentSetIndex(0);
+
+        const targetExercise = exercises[index];
+        const initialRest = targetExercise?.restTimes[0] || 60;
+        setTimeLeft(initialRest);
+        setDuration(initialRest);
+        setIsActive(true); // Auto-start or wait? Let's wait.
+        setIsActive(false);
+
+        setShowPlaylist(false);
+
+        // Sync widget
+        WidgetService.syncSession({
+            exercise: targetExercise.name,
+            next: exercises[index + 1]?.name || 'Fim do Treino',
+            currentSet: 1,
+            totalSets: targetExercise.restTimes.length + 1,
+            timerEnd: null,
+            timerStart: null
+        });
+    };
+
     const modals = (
         <>
-            {showAddModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
+            {showPlaylist && (
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-zinc-950 border-t sm:border border-zinc-800 w-full max-w-sm sm:rounded-[32px] rounded-t-[32px] p-6 animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 shadow-2xl flex flex-col max-h-[85vh]">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Novo Exercício</h3>
-                            <button title="Fechar" onClick={() => setShowAddModal(false)} className="text-zinc-500 hover:text-white">
-                                <i className="fa-solid fa-times text-lg"></i>
+                            <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">Cronograma</h3>
+                            <button onClick={() => setShowPlaylist(false)} className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 hover:text-white">
+                                <i className="fa-solid fa-times"></i>
                             </button>
                         </div>
 
-                        <div className="space-y-6">
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-[#00FF41] tracking-widest block mb-2">Nome do Exercício</label>
-                                <input
-                                    autoFocus
-                                    className="w-full bg-black/40 border border-zinc-800 rounded-2xl px-5 py-4 text-white font-bold uppercase focus:border-[#00FF41] outline-none transition-colors"
-                                    placeholder="EX: SUPINO INCLINADO"
-                                    value={addName}
-                                    onChange={(e) => setAddName(e.target.value)}
+                        <div className="overflow-y-auto pr-2 -mr-2 space-y-2">
+                            {exercises?.map((ex, i) => {
+                                const isCurrent = i === currentExerciseIndex;
+                                const isCompleted = completedIndices.includes(i);
+
+                                return (
+                                    <button
+                                        key={i}
+                                        onClick={() => jumpToExercise(i)}
+                                        className={`w-full p-4 rounded-2xl border flex items-center gap-4 transition-all ${isCurrent
+                                            ? 'bg-zinc-900 border-[#00FF41] shadow-[0_0_15px_rgba(0,255,65,0.1)]'
+                                            : isCompleted
+                                                ? 'bg-zinc-950 border-zinc-900 opacity-60' // Dimmed for completed
+                                                : 'bg-black border-zinc-900 hover:bg-zinc-900/50' // Defualt for Waiting
+                                            }`}
+                                    >
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${isCurrent ? 'bg-[#00FF41] text-black' :
+                                            isCompleted ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-900 text-zinc-700 border border-zinc-800'
+                                            }`}>
+                                            {isCompleted ? <i className="fa-solid fa-check"></i> :
+                                                isCurrent ? <i className="fa-solid fa-play text-[10px]"></i> :
+                                                    i + 1}
+                                        </div>
+
+                                        <div className="flex-1 text-left">
+                                            <div className={`font-bold text-sm uppercase leading-tight ${isCurrent ? 'text-white' : isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-400'}`}>
+                                                {ex.name}
+                                            </div>
+                                            <div className="text-[10px] text-zinc-600 mt-0.5 font-medium">
+                                                {ex.restTimes.length} Séries • {ex.restTimes[0]}s Descanso
+                                            </div>
+                                        </div>
+
+                                        {isCurrent && (
+                                            <div className="text-[10px] uppercase font-black text-[#00FF41] tracking-wider animate-pulse">
+                                                Atual
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+
+
+                            <button
+                                onClick={() => setShowAddModal(true)}
+                                className="w-full p-4 rounded-2xl border border-dashed border-zinc-800 flex items-center justify-center gap-2 text-zinc-600 hover:text-white hover:border-zinc-600 transition-all mt-4"
+                            >
+                                <i className="fa-solid fa-plus"></i> <span className="font-bold text-xs uppercase tracking-widest">Adicionar Exercício</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {
+                showAddModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="bg-zinc-900 border border-white/10 w-full max-w-lg rounded-[32px] p-6 animate-in zoom-in-95 duration-300 shadow-2xl flex flex-col max-h-[90vh]">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Novo Exercício</h3>
+                                <button title="Fechar" onClick={() => setShowAddModal(false)} className="text-zinc-500 hover:text-white">
+                                    <i className="fa-solid fa-times text-lg"></i>
+                                </button>
+                            </div>
+
+                            <div className="h-[60vh]">
+                                <ExerciseSelector
+                                    trainingId={trainingId}
+                                    initialOrder={exercises?.length || 0}
+                                    onSelect={addFreeExercise}
+                                    onCancel={() => setShowAddModal(false)}
                                 />
                             </div>
+                        </div>
+                    </div>
+                )
+            }
 
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-2">Séries</label>
-                                    <div className="bg-black/40 border border-zinc-800 rounded-2xl flex items-center p-1">
-                                        <button title="Diminuir Séries" onClick={() => setAddSets(Math.max(1, addSets - 1))} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-minus"></i></button>
-                                        <span className="flex-1 text-center font-black text-white italic text-lg">{addSets}</span>
-                                        <button title="Aumentar Séries" onClick={() => setAddSets(addSets + 1)} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-plus"></i></button>
-                                    </div>
-                                </div>
-                                <div className="flex-1">
-                                    <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest block mb-2">Descanso (s)</label>
-                                    <div className="bg-black/40 border border-zinc-800 rounded-2xl flex items-center p-1">
-                                        <button title="Reduzir Descanso" onClick={() => setAddRest(Math.max(0, addRest - 15))} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-minus"></i></button>
-                                        <span className="flex-1 text-center font-black text-white italic text-lg">{addRest}s</span>
-                                        <button title="Aumentar Descanso" onClick={() => setAddRest(addRest + 15)} className="w-10 h-10 rounded-xl bg-zinc-800 flex items-center justify-center text-white"><i className="fa-solid fa-plus"></i></button>
-                                    </div>
-                                </div>
+            {
+                showCancelConfirm && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Cancelar Treino?</h3>
+                            <p className="text-zinc-400 text-sm leading-relaxed mb-8">Todo o progresso desta sessão será perdido. Tem certeza que deseja sair?</p>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleCancelWorkout}
+                                    className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase transition-all active:scale-95 bg-red-600 text-white"
+                                >
+                                    Sim, Cancelar
+                                </button>
+                                <button
+                                    onClick={() => setShowCancelConfirm(false)}
+                                    className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
+                                >
+                                    Voltar
+                                </button>
                             </div>
-
-                            <button
-                                onClick={addFreeExercise}
-                                disabled={!addName}
-                                style={{ backgroundColor: theme.primary }}
-                                className="w-full py-5 rounded-2xl text-black font-black uppercase tracking-widest active:scale-95 transition-all disabled:opacity-30 disabled:grayscale mt-4"
-                            >
-                                Confirmar Adição
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {showCancelConfirm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
-                        <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Cancelar Treino?</h3>
-                        <p className="text-zinc-400 text-sm leading-relaxed mb-8">Todo o progresso desta sessão será perdido. Tem certeza que deseja sair?</p>
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={handleCancelWorkout}
-                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase transition-all active:scale-95 bg-red-600 text-white"
-                            >
-                                Sim, Cancelar
-                            </button>
-                            <button
-                                onClick={() => setShowCancelConfirm(false)}
-                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
-                            >
-                                Voltar
-                            </button>
+            {
+                showFinishConfirm && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+                        <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Finalizar Treino?</h3>
+                            <p className="text-zinc-400 text-sm leading-relaxed mb-8">Deseja encerrar o treino agora e salvar o progresso atual no histórico?</p>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleManualFinish}
+                                    className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase transition-all active:scale-95 bg-[#00FF41] text-black"
+                                >
+                                    Sim, Finalizar
+                                </button>
+                                <button
+                                    onClick={() => setShowFinishConfirm(false)}
+                                    className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
+                                >
+                                    Voltar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {showFinishConfirm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-zinc-900 border border-white/10 w-full max-w-sm rounded-[32px] p-8 animate-in zoom-in-95 duration-300 shadow-2xl">
-                        <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2">Finalizar Treino?</h3>
-                        <p className="text-zinc-400 text-sm leading-relaxed mb-8">Deseja encerrar o treino agora e salvar o progresso atual no histórico?</p>
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={handleManualFinish}
-                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase transition-all active:scale-95 bg-[#00FF41] text-black"
-                            >
-                                Sim, Finalizar
-                            </button>
-                            <button
-                                onClick={() => setShowFinishConfirm(false)}
-                                className="h-14 rounded-2xl font-black text-xs tracking-widest uppercase text-zinc-500 hover:text-white transition-colors"
-                            >
-                                Voltar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                )
+            }
 
             {
                 showCompleteModal && (
@@ -627,13 +678,22 @@ const SessionView: React.FC = () => {
                     <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-[0.2em] opacity-80">
                         Exercício {currentExerciseIndex + 1}/{exercises.length}
                     </span>
-                    <button
-                        title="Adicionar Exercício"
-                        onClick={() => setShowAddModal(true)}
-                        className="bg-zinc-900 text-white w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-800 active:scale-90 transition-transform"
-                    >
-                        <i className="fa-solid fa-plus text-[10px]"></i>
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            title="Ver Cronograma"
+                            onClick={() => setShowPlaylist(true)}
+                            className="bg-zinc-900 text-white w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-800 active:scale-90 transition-transform"
+                        >
+                            <i className="fa-solid fa-list-ul text-[10px]"></i>
+                        </button>
+                        <button
+                            title="Adicionar Exercício"
+                            onClick={() => setShowAddModal(true)}
+                            className="bg-zinc-900 text-white w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-800 active:scale-90 transition-transform"
+                        >
+                            <i className="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+                    </div>
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-none break-words">
                     {currentExercise.name}
@@ -649,10 +709,10 @@ const SessionView: React.FC = () => {
                                 backgroundColor: i < currentSetIndex
                                     ? theme.primary
                                     : i === currentSetIndex
-                                        ? `${theme.primary}40`
+                                        ? `${theme.primary} 40`
                                         : 'rgba(255,255,255,0.05)',
                                 boxShadow: i < currentSetIndex
-                                    ? `0 0 10px ${theme.primary}40`
+                                    ? `0 0 10px ${theme.primary} 40`
                                     : 'none'
                             }}
                         ></div>
@@ -661,16 +721,22 @@ const SessionView: React.FC = () => {
 
                 {/* Reps and Notes */}
                 <div className="flex flex-col gap-1 mt-2">
-                    {currentExercise.reps && (
+                    {/* Current Set Reps Target */}
+                    {currentExercise.setReps?.[currentSetIndex] && (
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] font-black text-zinc-600 uppercase">🎯 Meta:</span>
-                            <span className="text-sm font-bold text-zinc-300">{currentExercise.reps} reps</span>
+                            <span className="text-sm font-bold text-zinc-300">
+                                {currentExercise.setReps[currentSetIndex]} reps
+                            </span>
                         </div>
                     )}
                     {currentExercise.notes && (
-                        <p className="text-xs text-zinc-500 italic mt-1 bg-white/5 p-2 rounded-lg border border-white/5">
-                            "{currentExercise.notes}"
-                        </p>
+                        <div className="mt-2 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800 flex gap-3 items-start">
+                            <i className="fa-solid fa-note-sticky text-zinc-600 text-xs mt-0.5"></i>
+                            <p className="text-xs text-zinc-300 font-medium leading-relaxed">
+                                {currentExercise.notes}
+                            </p>
+                        </div>
                     )}
                 </div>
             </div>
@@ -729,10 +795,10 @@ const SessionView: React.FC = () => {
                     title="Próxima Série"
                     onClick={handleSetComplete}
                     disabled={isActive}
-                    className={`flex-1 h-16 sm:h-20 rounded-3xl font-black text-sm tracking-[0.15em] flex items-center justify-center transition-all active:scale-[0.96] shadow-2xl ${isActive
+                    className={`flex-1 h-12 rounded-xl font-black text-xs tracking-[0.15em] flex items-center justify-center transition-all active:scale-[0.96] shadow-lg ${isActive
                         ? 'bg-zinc-900 text-zinc-600 border border-zinc-900 cursor-not-allowed'
                         : 'bg-white text-black'
-                        }`}
+                        } `}
                 >
                     {currentSetIndex === currentExercise.restTimes.length ? 'FINALIZAR EXERCÍCIO' : 'PRÓXIMA SÉRIE'}
                 </button>

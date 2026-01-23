@@ -1,0 +1,16 @@
+{
+    "name": "NeoPulse",
+    "short_name": "NeoPulse",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#00FF41",
+    "description": "Treino Minimalista",
+    "icons": [
+        {
+            "src": "favicon.ico",
+            "sizes": "64x64 32x32 24x24 16x16",
+            "type": "image/x-icon"
+        }
+    ]
+}

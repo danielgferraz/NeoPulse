@@ -1,5 +1,18 @@
 import { LocalNotifications, ActionType } from '@capacitor/local-notifications';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+export interface TimerNotificationPlugin {
+    startTimer(options: {
+        title: string;
+        body: string;
+        timerStart: number;
+        timerEnd: number;
+        isStopwatch: boolean;
+    }): Promise<void>;
+    stopTimer(): Promise<void>;
+}
+
+const TimerNotification = registerPlugin<TimerNotificationPlugin>('TimerNotification');
 
 const ACTION_SET_COMPLETE = 'SET_COMPLETE';
 const ACTION_PAUSE = 'PAUSE_TIMER';
@@ -59,24 +72,58 @@ export const NotificationService = {
         }
     },
 
-    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_ticker') {
-        if (Capacitor.getPlatform() === 'web') return; // Desktop doesn't support ongoing sticky notifications easily
+    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_ticker', timerStart = 0, timerEnd = 0, isStopwatch = false) {
+        if (Capacitor.getPlatform() !== 'android') return;
 
-        await LocalNotifications.schedule({
-            notifications: [{
-                id,
+        if (isPaused) {
+            // Fallback to static notification when paused to stop chronometer
+            await LocalNotifications.schedule({
+                notifications: [{
+                    id,
+                    title: `[PAUSADO] ${title}`,
+                    body,
+                    ongoing: true,
+                    autoCancel: false,
+                    channelId,
+                    smallIcon: 'ic_stat_icon_config_sample',
+                    actionTypeId: 'TIMER_ACTIONS'
+                }]
+            });
+            return;
+        }
+
+        try {
+            await TimerNotification.startTimer({
                 title,
                 body,
-                ongoing: true, // Permanent
-                autoCancel: false,
-                channelId,
-                smallIcon: 'ic_stat_icon_config_sample',
-                actionTypeId: 'TIMER_ACTIONS'
-            }]
-        });
+                timerStart,
+                timerEnd,
+                isStopwatch
+            });
+        } catch (e) {
+            console.error('Failed to start native timer notification', e);
+            // Fallback to local notifications if native plugin fails
+            await LocalNotifications.schedule({
+                notifications: [{
+                    id,
+                    title,
+                    body,
+                    ongoing: true,
+                    autoCancel: false,
+                    channelId,
+                    smallIcon: 'ic_stat_icon_config_sample',
+                    actionTypeId: 'TIMER_ACTIONS'
+                }]
+            });
+        }
     },
 
     async cancel(id = 1001) {
+        if (Capacitor.getPlatform() === 'android') {
+            try {
+                await TimerNotification.stopTimer();
+            } catch (e) { }
+        }
         await LocalNotifications.cancel({ notifications: [{ id }] });
     },
 

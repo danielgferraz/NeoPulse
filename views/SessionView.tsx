@@ -29,7 +29,14 @@ const SessionView: React.FC = () => {
     const [extraExercises, setExtraExercises] = useState<Exercise[]>([]);
 
     // History Tracking
-    const completedExercises = useRef<{ name: string; sets: number; totalDuration?: number }[]>([]);
+    const completedExercises = useRef<{
+        name: string;
+        sets: number;
+        reps?: string[];
+        weights?: number[];
+        rpes?: number[];
+        totalDuration?: number;
+    }[]>([]);
 
     // Combine standard DB exercises with session-only extra exercises
     const exercises = useMemo(() => {
@@ -53,6 +60,9 @@ const SessionView: React.FC = () => {
 
     // Deleted manual 'newExercise' state as it is now handled by ExerciseSelector
     const lastSessionIndices = useRef({ exercise: -1, set: -1 });
+    const [currentWeight, setCurrentWeight] = useState<string>('');
+    const [currentRPE, setCurrentRPE] = useState<number>(8);
+    const exercisePerformance = useRef<{ reps: string; weight: number; rpe: number }[]>([]);
 
     const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
 
@@ -88,12 +98,27 @@ const SessionView: React.FC = () => {
         window.addEventListener('NEOPULSE_PAUSE', pauseHandler);
         window.addEventListener('NEOPULSE_RESET', resetHandler);
 
+        // Poll for Widget/Notification commands
+        const commandInterval = setInterval(async () => {
+            const { value: command } = await Preferences.get({ key: 'neopulse_widget_command' });
+            if (command) {
+                console.log("Widget Command Received:", command);
+                if (command === 'pause') window.dispatchEvent(new CustomEvent('NEOPULSE_PAUSE'));
+                else if (command === 'reset') window.dispatchEvent(new CustomEvent('NEOPULSE_RESET'));
+                else if (command === 'next') window.dispatchEvent(new CustomEvent('NEOPULSE_NEXT_SET'));
+
+                // Clear command after consumption
+                await Preferences.remove({ key: 'neopulse_widget_command' });
+            }
+        }, 1000);
+
         return () => {
             window.removeEventListener('NEOPULSE_NEXT_SET', nextSetHandler);
             window.removeEventListener('NEOPULSE_PAUSE', pauseHandler);
             window.removeEventListener('NEOPULSE_RESET', resetHandler);
+            clearInterval(commandInterval);
         };
-    }, [currentExercise, currentSetIndex, isStopwatch]);
+    }, [currentExercise, currentSetIndex, isStopwatch, duration]);
 
     // Timer & Stopwatch Logic
     useEffect(() => {
@@ -103,7 +128,10 @@ const SessionView: React.FC = () => {
                 `Série ${currentSetIndex + 1} | Descanso Ativo`,
                 !isActive,
                 1001,
-                'neopulse_ticker'
+                'neopulse_ticker',
+                0,
+                Date.now() + timeLeft * 1000,
+                false
             );
         } else if (isActive && isStopwatch) {
             NotificationService.showStickyNotification(
@@ -111,7 +139,10 @@ const SessionView: React.FC = () => {
                 `Cronômetro Ativo`,
                 !isActive,
                 1001,
-                'neopulse_ticker'
+                'neopulse_ticker',
+                Date.now() - stopwatchTime * 1000,
+                0,
+                true
             );
         } else if (!isActive && currentExercise && hasRestored) {
             NotificationService.showStickyNotification(
@@ -229,13 +260,22 @@ const SessionView: React.FC = () => {
         });
     }, [trainingId, currentExerciseIndex, currentSetIndex, timeLeft, isActive, isStopwatch, stopwatchTime, hasRestored, exercises, extraExercises]);
 
-    // Reset timer whenever exercise/set changes
+    // Reset weight/rpe and auto-fill if possible when exercise/set changes
     useEffect(() => {
         if (currentExercise && hasRestored) {
-            const isDifferent = lastSessionIndices.current.exercise !== currentExerciseIndex ||
-                lastSessionIndices.current.set !== currentSetIndex;
+            const isDifferentExercise = lastSessionIndices.current.exercise !== currentExerciseIndex;
+            const isDifferentSet = lastSessionIndices.current.set !== currentSetIndex;
 
-            if (isDifferent) {
+            if (isDifferentExercise) {
+                // New Exercise: Try to pre-fill with last session's first set weight
+                if (currentExercise.lastWeights && currentExercise.lastWeights.length > 0) {
+                    setCurrentWeight(currentExercise.lastWeights[0].toString());
+                } else {
+                    setCurrentWeight('');
+                }
+            }
+
+            if (isDifferentExercise || isDifferentSet) {
                 const newDuration = currentExercise.restTimes[Math.min(currentSetIndex, currentExercise.restTimes.length - 1)] || 90;
                 setTimeLeft(newDuration);
                 setDuration(newDuration);
@@ -268,6 +308,14 @@ const SessionView: React.FC = () => {
     const handleSetComplete = async () => {
         if (!currentExercise) return;
 
+        // Save current set performance
+        const reps = currentExercise.setReps?.[currentSetIndex] || "0";
+        exercisePerformance.current.push({
+            reps,
+            weight: parseFloat(currentWeight) || 0,
+            rpe: currentRPE
+        });
+
         if (currentSetIndex < currentExercise.restTimes.length) {
             const restDuration = currentExercise.restTimes[currentSetIndex];
             const nextSet = currentSetIndex + 1;
@@ -295,14 +343,27 @@ const SessionView: React.FC = () => {
     const finishExercise = async (initialRest?: number) => {
         if (!currentExercise || !training || !exercises) return;
 
-        // Log the exercise that just finished (whether it's intermediate or the last one)
+        // Log the exercise that just finished
         const currentEx = exercises[currentExerciseIndex];
         if (currentEx) {
             completedExercises.current.push({
                 name: currentEx.name,
-                sets: currentEx.restTimes.length
+                sets: currentEx.restTimes.length + 1,
+                reps: exercisePerformance.current.map(p => p.reps),
+                weights: exercisePerformance.current.map(p => p.weight),
+                rpes: exercisePerformance.current.map(p => p.rpe)
             });
-            // Mark as visually completed in cronograma list
+
+            // Update Exercise Table with "Last Used" weights for next time
+            await db.exercises.update(currentEx.id!, {
+                lastWeights: exercisePerformance.current.map(p => p.weight),
+                lastRPEs: exercisePerformance.current.map(p => p.rpe)
+            });
+
+            // Clear for next exercise
+            exercisePerformance.current = [];
+
+            // Mark as visually completed
             setCompletedIndices(prev => [...prev, currentExerciseIndex]);
         }
 
@@ -672,78 +733,73 @@ const SessionView: React.FC = () => {
 
     return (
         <div className="fixed inset-0 bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden z-[60]">
-            {/* Header: Exercise Info */}
-            <div className="p-6 pt-10 sm:p-8 sm:pt-12">
-                <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-[0.2em] opacity-80">
-                        Exercício {currentExerciseIndex + 1}/{exercises.length}
-                    </span>
-                    <div className="flex gap-2">
-                        <button
-                            title="Ver Cronograma"
-                            onClick={() => setShowPlaylist(true)}
-                            className="bg-zinc-900 text-white w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-800 active:scale-90 transition-transform"
-                        >
-                            <i className="fa-solid fa-list-ul text-[10px]"></i>
-                        </button>
-                        <button
-                            title="Adicionar Exercício"
-                            onClick={() => setShowAddModal(true)}
-                            className="bg-zinc-900 text-white w-8 h-8 rounded-lg flex items-center justify-center border border-zinc-800 active:scale-90 transition-transform"
-                        >
-                            <i className="fa-solid fa-plus text-[10px]"></i>
-                        </button>
+            {/* Compact HUD Header */}
+            <div className="w-full h-[70px] flex items-center justify-between px-6 pt-4 shrink-0 border-b border-zinc-900/50">
+                <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-[#00FF41] uppercase tracking-[0.2em]">{currentExerciseIndex + 1} / {exercises.length}</span>
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
+                            Série {currentSetIndex + 1}/{currentExercise.restTimes.length + 1}
+                        </span>
                     </div>
+                    <h2 className="text-sm font-black text-white uppercase italic leading-tight truncate max-w-[200px] mt-0.5">{currentExercise.name}</h2>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white leading-none break-words">
-                    {currentExercise.name}
-                </h2>
-
-                {/* Set Progress Dashes */}
-                <div className="flex gap-1.5 mt-3 mb-1">
-                    {activeExerciseSets.map((_, i) => (
-                        <div
-                            key={i}
-                            className="h-1.5 flex-1 rounded-full transition-all duration-500"
-                            style={{
-                                backgroundColor: i < currentSetIndex
-                                    ? theme.primary
-                                    : i === currentSetIndex
-                                        ? `${theme.primary} 40`
-                                        : 'rgba(255,255,255,0.05)',
-                                boxShadow: i < currentSetIndex
-                                    ? `0 0 10px ${theme.primary} 40`
-                                    : 'none'
-                            }}
-                        ></div>
-                    ))}
-                </div>
-
-                {/* Reps and Notes */}
-                <div className="flex flex-col gap-1 mt-2">
-                    {/* Current Set Reps Target */}
-                    {currentExercise.setReps?.[currentSetIndex] && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black text-zinc-600 uppercase">🎯 Meta:</span>
-                            <span className="text-sm font-bold text-zinc-300">
-                                {currentExercise.setReps[currentSetIndex]} reps
-                            </span>
-                        </div>
-                    )}
-                    {currentExercise.notes && (
-                        <div className="mt-2 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800 flex gap-3 items-start">
-                            <i className="fa-solid fa-note-sticky text-zinc-600 text-xs mt-0.5"></i>
-                            <p className="text-xs text-zinc-300 font-medium leading-relaxed">
-                                {currentExercise.notes}
-                            </p>
-                        </div>
-                    )}
+                <div className="flex gap-2">
+                    <button
+                        title="Ver Cronograma"
+                        onClick={() => setShowPlaylist(true)}
+                        className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 active:scale-90 transition-transform"
+                    >
+                        <i className="fa-solid fa-list-ul text-xs"></i>
+                    </button>
+                    <button
+                        title="Adicionar Exercício"
+                        onClick={() => setShowAddModal(true)}
+                        className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 active:scale-90 transition-transform"
+                    >
+                        <i className="fa-solid fa-plus text-xs"></i>
+                    </button>
                 </div>
             </div>
 
+            {/* Prominent Notes Box (if exists) */}
+            {currentExercise.notes && (
+                <div className="w-full px-6 pt-3 shrink-0 animate-in fade-in slide-in-from-top-2 duration-700">
+                    <div className="bg-zinc-900/30 border border-[#00FF41]/10 p-2.5 rounded-2xl flex gap-3 items-center backdrop-blur-sm relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#00FF41]/5 to-transparent pointer-events-none"></div>
+                        <div className="w-6 h-6 rounded-lg bg-[#00FF41]/10 flex items-center justify-center shrink-0 border border-[#00FF41]/20">
+                            <i className="fa-solid fa-note-sticky text-[#00FF41] text-[10px]"></i>
+                        </div>
+                        <p className="text-[10px] text-zinc-400 font-bold leading-tight italic truncate">
+                            {currentExercise.notes}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Set Progress Dashes */}
+            <div className="flex gap-1.5 px-6 pt-4 shrink-0">
+                {activeExerciseSets.map((_, i) => (
+                    <div
+                        key={i}
+                        className="h-1.5 flex-1 rounded-full transition-all duration-500"
+                        style={{
+                            backgroundColor: i < currentSetIndex
+                                ? theme.primary
+                                : i === currentSetIndex
+                                    ? `${theme.primary}40`
+                                    : 'rgba(255,255,255,0.05)',
+                            boxShadow: i < currentSetIndex
+                                ? `0 0 10px ${theme.primary}40`
+                                : 'none'
+                        }}
+                    ></div>
+                ))}
+            </div>
+
             {/* Main Timer Display */}
-            <div className="flex-1 flex flex-col items-center justify-center -mt-6 sm:-mt-10 min-h-0">
-                <div className="relative transform scale-90 sm:scale-100 transition-transform">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2">
+                <div className="relative transform scale-[0.82] sm:scale-95 transition-transform">
                     <Timer
                         timeLeft={isStopwatch ? stopwatchTime : timeLeft}
                         isActive={isActive}
@@ -779,33 +835,77 @@ const SessionView: React.FC = () => {
                     />
                 </div>
 
-                {/* Set Indicator */}
-                <div className="mt-4 sm:mt-8 flex flex-col items-center">
-                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">Série Atual</span>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-6xl font-black italic text-white">{currentSetIndex + 1}</span>
-                        <span className="text-xl font-black text-zinc-800 uppercase italic">/ {currentExercise.restTimes.length + 1}</span>
+                {/* Meta reps as a small HUD below timer */}
+                {currentExercise.setReps?.[currentSetIndex] && (
+                    <div className="mt-2 text-center animate-pulse">
+                        <span className="text-[10px] font-black italic text-[#00FF41] uppercase tracking-[0.2em] bg-[#00FF41]/10 px-3 py-1 rounded-full border border-[#00FF41]/20">
+                            Meta: {currentExercise.setReps[currentSetIndex]} Reps
+                        </span>
                     </div>
+                )}
+            </div>
+
+            {/* Adrenaline Console (Performance + Action) */}
+            <div className="w-full shrink-0 px-6 pb-6 pt-2">
+                <div className="w-full max-w-sm mx-auto p-3.5 bg-zinc-900 border border-zinc-800 rounded-[32px] shadow-2xl relative overflow-hidden">
+
+                    {/* Last Session Reminder */}
+                    {currentExercise.lastWeights && (
+                        <div className="flex justify-center mb-3">
+                            <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-zinc-800/50">
+                                <i className="fa-solid fa-clock-rotate-left text-[#00FF41] text-[8px] opacity-70"></i>
+                                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Última: <span className="text-zinc-200">{currentExercise.lastWeights[currentSetIndex] || currentExercise.lastWeights[0]}kg</span></span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 mb-3">
+                        <div className="flex-[5] flex flex-col gap-1">
+                            <span className="text-[8px] font-black text-zinc-700 uppercase ml-2 tracking-widest">Peso</span>
+                            <div className="bg-black/40 border border-zinc-800/50 rounded-2xl h-11 flex items-center px-3 focus-within:border-[#00FF41]/30 transition-colors">
+                                <i className="fa-solid fa-weight-hanging text-zinc-700 text-[10px]"></i>
+                                <input
+                                    type="number"
+                                    placeholder="0"
+                                    value={currentWeight}
+                                    onChange={(e) => setCurrentWeight(e.target.value)}
+                                    className="bg-transparent border-none text-white font-black text-base w-full focus:outline-none placeholder:text-zinc-800 ml-2"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex-[4] flex flex-col gap-1">
+                            <span className="text-[8px] font-black text-zinc-700 uppercase ml-2 tracking-widest">Esforço</span>
+                            <div className="bg-black/40 border border-zinc-800/50 rounded-2xl h-11 flex items-center px-3 focus-within:border-[#00FF41]/30 transition-colors relative">
+                                <i className="fa-solid fa-gauge-high text-zinc-700 text-[10px]"></i>
+                                <select
+                                    value={currentRPE}
+                                    onChange={(e) => setCurrentRPE(parseInt(e.target.value))}
+                                    className="bg-transparent border-none text-white font-black text-xs w-full focus:outline-none appearance-none ml-2 z-10"
+                                    title="Dificuldade (RPE)"
+                                >
+                                    {[6, 7, 8, 9, 10].map(val => (
+                                        <option key={val} value={val} className="bg-zinc-900">RPE {val}</option>
+                                    ))}
+                                </select>
+                                <i className="fa-solid fa-chevron-down absolute right-3 text-[8px] text-zinc-800 pointer-events-none"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleSetComplete}
+                        disabled={isActive}
+                        style={{ backgroundColor: isActive ? '#18181b' : theme.primary }}
+                        className={`w-full h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-sm flex items-center justify-center gap-2 transition-all shadow-lg ${isActive ? 'text-zinc-700 border border-zinc-800 opacity-50' : 'text-black active:scale-[0.98]'}`}
+                    >
+                        <span>{currentSetIndex === currentExercise.restTimes.length ? 'Finalizar Ex' : 'Próxima Série'}</span>
+                        <i className={`fa-solid ${currentSetIndex === currentExercise.restTimes.length ? 'fa-flag-checkered' : 'fa-arrow-right-long'} text-xs`}></i>
+                    </button>
                 </div>
             </div>
 
-            {/* Main Action Button */}
-            <div className="mt-auto flex gap-4 p-5 sm:p-6">
-                <button
-                    title="Próxima Série"
-                    onClick={handleSetComplete}
-                    disabled={isActive}
-                    className={`flex-1 h-12 rounded-xl font-black text-xs tracking-[0.15em] flex items-center justify-center transition-all active:scale-[0.96] shadow-lg ${isActive
-                        ? 'bg-zinc-900 text-zinc-600 border border-zinc-900 cursor-not-allowed'
-                        : 'bg-white text-black'
-                        } `}
-                >
-                    {currentSetIndex === currentExercise.restTimes.length ? 'FINALIZAR EXERCÍCIO' : 'PRÓXIMA SÉRIE'}
-                </button>
-            </div>
-
             {/* Nav Peek */}
-            <div className="flex justify-between px-8 pb-8 sm:pb-10">
+            <div className="flex justify-between px-8 pb-8 sm:pb-10 shrink-0">
                 <button
                     onClick={() => setShowCancelConfirm(true)}
                     className="text-[10px] font-black uppercase tracking-widest text-red-500/80 hover:text-red-500 transition-colors"
@@ -813,7 +913,7 @@ const SessionView: React.FC = () => {
                     <i className="fa-solid fa-xmark mr-2"></i> Cancelar
                 </button>
                 <div className="flex-1 flex justify-center">
-                    {currentExercisesCount() < exercises.length && (
+                    {currentExerciseIndex + 1 < exercises.length && (
                         <div className="text-center opacity-40">
                             <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Próximo</p>
                             <p className="text-[10px] font-black uppercase italic text-zinc-400 truncate max-w-[120px]">{exercises[currentExerciseIndex + 1]?.name || '---'}</p>
@@ -829,7 +929,7 @@ const SessionView: React.FC = () => {
             </div>
 
             {modals}
-        </div >
+        </div>
     );
 };
 

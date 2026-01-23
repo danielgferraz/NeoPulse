@@ -13,56 +13,62 @@ const WorkoutPreview = ({ trainingId, onClose, navigate, theme }: { trainingId: 
     if (!trainingId || !previewTraining) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] flex items-end animate-in fade-in duration-300">
-            <div className="w-full bg-zinc-900 rounded-t-[3rem] p-8 border-t border-white/10 animate-in slide-in-from-bottom-10 max-h-[90vh] flex flex-col shadow-2xl">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex-1">
-                        <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-[0.3em] leading-none mb-1 block">Visualizar Treino</span>
-                        <h3 className="text-2xl font-black uppercase italic text-white leading-tight break-words">{previewTraining.name}</h3>
-                    </div>
-                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center shrink-0 ml-4">
-                        <i className="fa-solid fa-times"></i>
-                    </button>
-                </div>
+        <div className="fixed inset-0 bg-black z-[90] flex flex-col p-10 animate-in fade-in duration-500 overflow-hidden">
+            {/* Background Narrative */}
+            <div className="absolute top-[-10vh] left-[-5vh] opacity-[0.02] pointer-events-none select-none">
+                <span className="text-[30vh] font-black italic leading-none whitespace-nowrap uppercase">
+                    {previewTraining.name}
+                </span>
+            </div>
 
-                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-3">
-                    {previewExercises.length > 0 ? (
-                        previewExercises.map((ex, i) => (
-                            <div key={ex.id} className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center gap-4">
-                                <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shrink-0 border border-white/10">
-                                    <span className="text-[10px] font-black text-zinc-500">{i + 1}</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-black text-white uppercase italic truncate">{ex.name}</p>
-                                    <div className="flex gap-2 mt-1">
-                                        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{ex.restTimes.length + 1} Séries</span>
-                                        {ex.reps && <span className="text-[9px] font-bold text-[#00FF41] uppercase tracking-widest">• {ex.reps} reps</span>}
-                                    </div>
+            <div className="flex justify-between items-start mb-16 relative z-10">
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] mb-2 border-l border-[#00FF41] pl-3">Visualizar Protocolo</span>
+                    <h3 className="text-5xl font-black italic text-white tracking-tighter uppercase leading-none break-words max-w-[80vw]">
+                        {previewTraining.name}
+                    </h3>
+                </div>
+                <button onClick={onClose} title="Fechar Visualização" className="w-12 h-12 rounded-full border border-zinc-800 text-zinc-400 flex items-center justify-center hover:text-white transition-all">
+                    <i className="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto no-scrollbar relative z-10 space-y-6 pb-20">
+                {previewExercises.length > 0 ? (
+                    previewExercises.map((ex, i) => (
+                        <div key={ex.id} className="flex items-center gap-6 group">
+                            <span className="text-xl font-black text-zinc-800 italic group-hover:text-[#00FF41] transition-colors">
+                                {String(i + 1).padStart(2, '0')}
+                            </span>
+                            <div className="flex flex-col border-b border-zinc-900 pb-4 flex-1">
+                                <p className="text-lg font-black text-white uppercase italic tracking-tighter truncate group-hover:pl-2 transition-all">
+                                    {ex.name}
+                                </p>
+                                <div className="flex gap-4 mt-1 opacity-40">
+                                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{ex.restTimes.length + 1} Séries</span>
+                                    {ex.reps && <span className="text-[9px] font-bold text-[#00FF41] uppercase tracking-widest">• {ex.reps} Reps</span>}
                                 </div>
                             </div>
-                        ))
-                    ) : (
-                        <div className="py-10 text-center opacity-40">
-                            <p className="text-sm text-zinc-500 italic">Nenhum exercício cadastrado.</p>
                         </div>
-                    )}
-                </div>
+                    ))
+                ) : (
+                    <div className="py-20 text-center opacity-20">
+                        <p className="text-sm text-zinc-500 italic uppercase font-black tracking-widest">Nenhum fragmento encontrado.</p>
+                    </div>
+                )}
+            </div>
 
-                <div className="mt-8 pt-6 border-t border-white/5">
-                    <button
-                        onClick={() => {
-                            onClose();
-                            navigate(`/session/${trainingId}`);
-                        }}
-                        style={{
-                            backgroundColor: theme.primary,
-                            boxShadow: `0 0 30px ${theme.primary}50`
-                        }}
-                        className="w-full py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-[0.96] transition-all transform"
-                    >
-                        <span className="text-lg font-black uppercase italic tracking-tighter text-black">Iniciar Treino Agora</span>
-                    </button>
-                </div>
+            <div className="pt-8 relative z-10 border-t border-zinc-900">
+                <button
+                    onClick={() => {
+                        onClose();
+                        navigate(`/session/${trainingId}`);
+                    }}
+                    className="w-full py-6 bg-[#00FF41] text-black rounded-none flex items-center justify-center gap-4 active:scale-[0.98] transition-all group"
+                >
+                    <span className="text-2xl font-black uppercase italic tracking-tighter group-hover:tracking-widest transition-all">Executar Protocolo</span>
+                    <i className="fa-solid fa-bolt-lightning animate-pulse"></i>
+                </button>
             </div>
         </div>
     );
@@ -70,6 +76,7 @@ const WorkoutPreview = ({ trainingId, onClose, navigate, theme }: { trainingId: 
 
 const HomeView: React.FC = () => {
     const trainings = useLiveQuery(() => db.trainings.orderBy('order').toArray());
+    const allExercises = useLiveQuery(() => db.exercises.toArray());
     const workoutHistory = useLiveQuery(() => db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray());
     const weightLogs = useLiveQuery(() => db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray());
     const navigate = useNavigate();
@@ -250,282 +257,292 @@ const HomeView: React.FC = () => {
 
 
     return (
-        <div className="w-full max-w-md flex flex-col gap-4 pb-20 animate-in fade-in">
-            {/* Start Workout Primary Action */}
-            {!activeSession && (
-                <div className="px-2">
-                    <button
-                        onClick={startWorkout}
-                        style={{
-                            backgroundColor: theme.primary,
-                            boxShadow: `0 0 30px ${theme.primary}50`
-                        }}
-                        className="w-full py-6 rounded-[2rem] flex items-center justify-center gap-3 active:scale-[0.98] transition-all transform group"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
-                            <i className={`fa-solid fa-play text-xs`} style={{ color: theme.primary }}></i>
-                        </div>
-                        <span className="text-xl font-black uppercase italic tracking-tighter text-black">Iniciar Treino</span>
-                    </button>
+        <div className="fixed inset-0 bg-black overflow-hidden flex flex-col font-sans select-none z-[60]">
+            {/* Z-0: GHOST METRICS LAYER (Background) */}
+            <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-10 opacity-[0.07] select-none">
+                <div className="flex justify-between items-start">
+                    <span className="text-[20vh] font-black leading-none tracking-tighter italic">
+                        {workoutHistory?.length || 0}
+                    </span>
+                    <span className="text-4xl font-black uppercase vertical-text tracking-[1em] mt-20">
+                        PULSO
+                    </span>
                 </div>
-            )}
-
-            {/* Resume Active Session */}
-            {activeSession && (
-                <div className="px-2">
-                    <button
-                        onClick={() => navigate(`/session/${activeSession.trainingId}`)}
-                        className="w-full p-6 bg-zinc-900 border border-zinc-800 rounded-[2rem] flex items-center justify-between group active:scale-[0.98] transition-all shadow-xl"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
-                                <i className="fa-solid fa-rotate-left text-zinc-400"></i>
-                            </div>
-                            <div className="text-left">
-                                <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest leading-none">Continuar Treino</span>
-                                <p className="text-lg font-black uppercase italic text-white mt-1">{activeSession.trainingName}</p>
-                            </div>
-                        </div>
-                        <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-white group-hover:bg-zinc-700 transition-colors">
-                            <i className="fa-solid fa-chevron-right"></i>
-                        </div>
-                    </button>
-                </div>
-            )}
-
-            {/* Selection Modal (Simplified Overlay) */}
-            {showSelection && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end animate-in fade-in duration-300">
-                    <div className="w-full bg-zinc-900 rounded-t-[3rem] p-8 border-t border-zinc-800 animate-in slide-in-from-bottom-10">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-2xl font-black uppercase italic text-white leading-none">Qual Treino?</h3>
-                            <button onClick={() => setShowSelection(false)} className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center">
-                                <i className="fa-solid fa-times"></i>
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 max-h-[50vh] overflow-y-auto">
-                            <button
-                                title="Fazer Treino Livre"
-                                onClick={async () => {
-                                    // Clear temporary exercises for trainingId 0
-                                    await db.exercises.where('trainingId').equals(0).delete();
-                                    setShowSelection(false);
-                                    navigate('/session/0');
-                                }}
-                                className="p-5 bg-white border border-[#00FF41] rounded-2xl text-left active:scale-[0.98] transition-transform"
-                                style={{ boxShadow: `0 0 20px rgba(0, 255, 65, 0.2)` }}
-                            >
-                                <span className="text-[10px] font-black uppercase text-[#00FF41] tracking-widest leading-none">Modo Livre</span>
-                                <p className="text-lg font-black uppercase italic text-black mt-1">Treino Livre</p>
-                            </button>
-
-                            <div className="h-px bg-zinc-800 my-1"></div>
-
-                            {trainings?.map((t) => (
-                                <button
-                                    key={t.id}
-                                    onClick={() => {
-                                        setShowSelection(false);
-                                        setPreviewTrainingId(t.id!);
-                                    }}
-                                    className="p-5 bg-zinc-950 border border-zinc-800 rounded-2xl text-left hover:border-zinc-500 transition-colors"
-                                >
-                                    <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest leading-none">Selecione o Treino</span>
-                                    <p className="text-lg font-black uppercase italic text-white mt-1">{t.name}</p>
-                                </button>
-                            ))}
-                        </div>
+                <div className="flex items-end justify-between">
+                    <div className="flex flex-col">
+                        <span className="text-6xl font-black italic mb-2 tracking-tighter">SISTEMA</span>
+                        <span className="text-2xl font-black uppercase tracking-[0.5em]">MÉTRICO</span>
                     </div>
+                    <span className="text-[15vh] font-black leading-none italic">
+                        {weightLogs?.[0]?.weight || '--'}
+                    </span>
                 </div>
-            )}
-            {/* Calendar */}
-            <div className="bg-zinc-900/50 p-4 rounded-3xl border border-zinc-800">
-                <div className="flex justify-between items-center mb-3">
-                    <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500">Frequência (14 dias)</span>
-                    <span className="text-[10px] font-black text-white">{workoutHistory?.length || 0} treinos mês</span>
-                </div>
-
-                {/* Monthly Goal Progress */}
-                <div className="flex items-center gap-4 mb-5 p-3 bg-black/40 rounded-2xl border border-zinc-800/50">
-                    <div className="relative w-12 h-12 flex items-center justify-center">
-                        <svg className="w-full h-full -rotate-90">
-                            <circle cx="24" cy="24" r="20" fill="transparent" stroke="currentColor" strokeWidth="4" className="text-zinc-800" />
-                            <circle cx="24" cy="24" r="20" fill="transparent" stroke="currentColor" strokeWidth="4"
-                                strokeDasharray={126}
-                                strokeDashoffset={126 - (126 * Math.min(100, ((workoutHistory?.length || 0) / monthlyGoal) * 100)) / 100}
-                                style={{ color: theme.primary }}
-                                className="transition-all duration-1000" />
-                        </svg>
-                        <span className="absolute text-[10px] font-black text-white">{Math.round(((workoutHistory?.length || 0) / monthlyGoal) * 100)}%</span>
-                    </div>
-                    <div className="flex-1">
-                        <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Meta Mensal</p>
-                        <p className="text-xs text-zinc-300 font-bold">{workoutHistory?.length || 0} de {monthlyGoal} treinos</p>
-                    </div>
-                </div>
-
-                <div className="flex justify-between">
-                    {calendarDays.map((date, i) => {
-                        const didTrain = hasTrainingOnDate(date);
-                        const isToday = new Date().toDateString() === date.toDateString();
-                        const isSelected = selectedDate === date.toDateString();
-                        const trainingsOnDay = getTrainingsForDate(date);
-
-                        return (
-                            <div
-                                key={i}
-                                className="flex flex-col items-center gap-1 cursor-pointer active:scale-90 transition-transform"
-                                onClick={() => setSelectedDate(isSelected ? null : date.toDateString())}
-                            >
-                                <div
-                                    className={`w-3 h-3 rounded-full ${didTrain ? '' : 'bg-zinc-800'} ${isToday && !didTrain ? 'border border-white/20' : ''} ${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''}`}
-                                    style={{
-                                        backgroundColor: didTrain ? theme.primary : undefined,
-                                        boxShadow: didTrain ? `0 0 10px ${theme.primary}40` : 'none'
-                                    }}
-                                ></div>
-                                <span className={`text-[8px] font-mono uppercase ${isSelected ? 'text-white font-bold' : 'text-zinc-600'}`}>{date.toLocaleDateString('pt-BR', { weekday: 'narrow' })}</span>
-                            </div>
-                        )
-                    })}
-                </div>
-
-                {selectedDate && (
-                    <div className="mt-4 pt-3 border-t border-zinc-800/50 animate-in slide-in-from-top-2 duration-300">
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">
-                            {new Date(selectedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
-                        </p>
-                        {getTrainingsForDate(new Date(selectedDate)).length > 0 ? (
-                            <div className="flex flex-col gap-2">
-                                {getTrainingsForDate(new Date(selectedDate)).map((h, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => navigate(`/summary?tid=0`, { state: { history: h.details || [] } })} // tid=0 as fallback, primarily using state
-                                        className="px-4 py-3 bg-zinc-800 rounded-xl text-xs font-bold text-white flex items-center justify-between w-full active:scale-95 transition-transform"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <i className="fa-solid fa-check-double text-[10px]" style={{ color: theme.primary }}></i>
-                                            <span className="uppercase tracking-wide">{h.trainingName}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 opacity-50">
-                                            <span className="text-[10px] uppercase font-bold">{h.sets} Séries</span>
-                                            <i className="fa-solid fa-chevron-right text-[8px]"></i>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-xs text-zinc-600 italic">Nenhum treino registrado.</p>
-                        )}
-                    </div>
-                )}
             </div>
 
-            {!activeSession && (
-                <div className="flex justify-between items-center mb-4 px-2">
-                    <h2 className="text-xl font-black uppercase italic tracking-tighter" style={{ color: theme.primary }}>Meus Treinos</h2>
-                    <button
-                        title="Adicionar Treino"
-                        onClick={addTraining}
-                        style={{ backgroundColor: theme.primary, boxShadow: `0 0 15px ${theme.primary}40` }}
-                        className="text-black w-8 h-8 rounded-lg flex items-center justify-center font-bold"
-                    >
-                        <i className="fa-solid fa-plus"></i>
-                    </button>
-                </div>
-            )}
+            {/* Z-10: ASYMMETRIC HUD (Foreground) */}
+            <div className="relative flex-1 flex flex-col px-8 pt-16 pb-24 z-10 overflow-y-auto no-scrollbar">
 
-
-            {/* Weight Logging Card */}
-            <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl mb-1">
-                <div className="flex justify-between items-center mb-1">
-                    <div className="flex items-center gap-2">
-                        <i className="fa-solid fa-scale-balanced text-zinc-600"></i>
-                        <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500">Peso Corporal</span>
+                {/* HUD Header: Tensão Assimétrica */}
+                <div className="flex justify-between items-start mb-12">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] mb-2 border-l-2 border-[#00FF41] pl-3">Portal de Performance</span>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-5xl font-black italic text-white tracking-tighter">
+                                {Math.round(((workoutHistory?.length || 0) / monthlyGoal) * 100)}%
+                            </span>
+                            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Meta</span>
+                        </div>
                     </div>
-                    {weightLogs?.[0] && (
-                        <span className="text-xl font-black italic text-white">{weightLogs[0].weight} <span className="text-[10px] not-italic text-zinc-500 uppercase">Kg</span></span>
+                    <div className="flex flex-col items-end gap-6">
+                        <button
+                            onClick={() => navigate('/settings')}
+                            className="flex items-center gap-2 text-zinc-800 hover:text-[#00FF41] transition-all group"
+                            title="Configurações do Sistema"
+                        >
+                            <span className="text-[7px] font-black uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-all">Config_Sis</span>
+                            <i className="fa-solid fa-gear text-[10px]"></i>
+                        </button>
+                        <div className="text-right">
+                            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] mb-2 block">Log de Peso</span>
+                            <p className="text-2xl font-black text-zinc-200 italic tracking-tighter">
+                                {weightLogs?.[0] ? `${weightLogs[0].weight}KG` : '---'}
+                            </p>
+                            <button
+                                onClick={() => setShowWeightInput(true)}
+                                className="text-[8px] font-black text-[#00FF41] uppercase tracking-widest mt-1 opacity-50 hover:opacity-100 transition-opacity"
+                            >
+                                + Atualizar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Telemetria de Pulso (Frequency HUD) */}
+                <div className="mb-14">
+                    <div className="flex justify-between items-end mb-4">
+                        <span className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.4em]">Frequência Temporal (14D)</span>
+                        <span className="text-[8px] font-black text-[#00FF41] uppercase tracking-widest">Online</span>
+                    </div>
+                    <div className="flex justify-between items-end h-8 gap-[3px] mb-2">
+                        {calendarDays.map((date, i) => {
+                            const didTrain = hasTrainingOnDate(date);
+                            const isToday = new Date().toDateString() === date.toDateString();
+                            const isSelected = selectedDate === date.toDateString();
+
+                            return (
+                                <div
+                                    key={i}
+                                    onClick={() => setSelectedDate(isSelected ? null : date.toDateString())}
+                                    className={`flex-1 h-full cursor-pointer transition-all duration-300 relative group`}
+                                >
+                                    <div
+                                        className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-[2px] transition-all duration-500
+                                            ${didTrain ? 'bg-[#00FF41] h-full shadow-[0_0_10px_#00FF41]' : 'bg-zinc-900 h-2'}
+                                            ${isSelected ? 'h-full bg-white scale-x-150 shadow-[0_0_15px_white]' : ''}
+                                            ${isToday ? 'after:content-[""] after:absolute after:-top-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-white after:rounded-full' : ''}
+                                        `}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {/* Labelling Técnico: Iniciais dos Dias */}
+                    <div className="flex justify-between gap-[3px]">
+                        {calendarDays.map((date, i) => (
+                            <span key={i} className={`flex-1 text-center text-[7px] font-black tracking-tighter
+                                ${new Date().toDateString() === date.toDateString() ? 'text-white' : 'text-zinc-800'}
+                            `}>
+                                {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][date.getDay()]}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Expansão de Telemetria (Workout Details) */}
+                    {selectedDate && (
+                        <div className="mt-6 p-4 border border-zinc-900 bg-zinc-950/50 animate-in slide-in-from-top-4 duration-500">
+                            <div className="flex justify-between items-center mb-4 border-b border-zinc-900 pb-2">
+                                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                                    {new Date(selectedDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).toUpperCase()}
+                                </span>
+                                <span className="text-[8px] font-black text-zinc-700 uppercase tracking-[0.2em] italic">Protocolos Executados</span>
+                            </div>
+
+                            <div className="space-y-3">
+                                {getTrainingsForDate(new Date(selectedDate)).length > 0 ? (
+                                    getTrainingsForDate(new Date(selectedDate)).map((h, i) => (
+                                        <div
+                                            key={i}
+                                            onClick={() => navigate(`/summary?tid=0`, { state: { history: h.details || [] } })}
+                                            className="flex justify-between items-center cursor-pointer group hover:pl-2 transition-all"
+                                        >
+                                            <h4 className="text-sm font-black text-white italic uppercase tracking-tighter group-hover:text-[#00FF41]">
+                                                {h.trainingName}
+                                            </h4>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[9px] font-bold text-zinc-600 uppercase">{h.sets} SÉRIES</span>
+                                                <i className="fa-solid fa-chevron-right text-[8px] text-zinc-800"></i>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-[9px] font-black text-zinc-800 uppercase italic tracking-widest text-center py-2">Sem atividade registrada.</p>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
 
-                {showWeightInput ? (
-                    <div className="flex gap-2 mt-3 animate-in slide-in-from-top-2">
+                {/* Main Action: THE VOID START */}
+                <div className="flex-1 flex flex-col justify-center items-center py-10">
+                    {!activeSession ? (
+                        <div className="relative group cursor-pointer" onClick={startWorkout}>
+                            {/* Layered Effect for Action */}
+                            <div className="absolute inset-0 bg-white/5 scale-[2] rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
+                            <div className="relative flex flex-col items-center">
+                                <span className="text-[15vw] font-black italic text-white tracking-tighter leading-none transition-transform duration-500 group-active:scale-95 group-hover:tracking-normal group-hover:skew-x-[-4deg]">
+                                    INICIAR
+                                </span>
+                                <div className="flex flex-col items-center mt-2">
+                                    <div className="flex items-center gap-4 mb-1">
+                                        <div className="h-px w-6 bg-zinc-900"></div>
+                                        <span className="text-[8px] font-black text-zinc-600 uppercase tracking-[0.4em]">Pronto p/ Execução</span>
+                                        <div className="h-px w-6 bg-zinc-900"></div>
+                                    </div>
+                                    <span className="text-[7px] font-mono text-[#00FF41]/30 tracking-widest uppercase">NP_CORE_V0.49 // SYSTEM_READY</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="relative flex flex-col items-center cursor-pointer" onClick={() => navigate(`/session/${activeSession.trainingId}`)}>
+                            <span className="text-[8vw] font-black italic text-[#00FF41] tracking-tighter leading-none animate-pulse">
+                                RETOMAR
+                            </span>
+                            <span className="text-2xl font-black text-white uppercase italic mt-1 tracking-tighter truncate max-w-[280px]">
+                                {activeSession.trainingName}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Training Narrative: NO CARDS, JUST FRAGMENTS */}
+                <div className="mt-auto space-y-8">
+                    <div className="flex justify-between items-end border-b border-zinc-900 pb-2 mb-6">
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em]">Rotinas Atuais</span>
+                        <button onClick={addTraining} className="text-[10px] font-black text-[#00FF41] uppercase tracking-widest">+ Novo Treino</button>
+                    </div>
+
+                    <div className="space-y-6">
+                        {trainings?.map((training, i) => (
+                            <div key={training.id} className="group relative flex items-center justify-between cursor-pointer border-l border-zinc-900 hover:border-[#00FF41] pl-6 transition-colors">
+                                <div className="flex flex-col" onClick={() => setPreviewTrainingId(training.id!)}>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[8px] font-black text-[#00FF41] uppercase tracking-widest">
+                                            {training.name.split(' ').slice(0, 1).join('').toUpperCase()}
+                                        </span>
+                                        <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">
+                                            • {allExercises?.filter(ex => ex.trainingId === training.id).length || 0} EXERG
+                                        </span>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter group-hover:text-[#00FF41] transition-colors leading-none">
+                                        {training.name}
+                                    </h3>
+                                </div>
+
+                                <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }} title="Editar Protocolo" className="text-zinc-600 hover:text-white transition-colors">
+                                        <i className="fa-solid fa-pen-nib text-[10px]"></i>
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); duplicateTraining(training.id!); }} title="Duplicar Protocolo" className="text-zinc-600 hover:text-white transition-colors">
+                                        <i className="fa-solid fa-clone text-[10px]"></i>
+                                    </button>
+                                    <div className="flex flex-col gap-1">
+                                        <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveTraining(training.id!, 'up'); }} title="Mover para cima" className="text-zinc-800 hover:text-[#00FF41] disabled:opacity-0">
+                                            <i className="fa-solid fa-chevron-up text-[8px]"></i>
+                                        </button>
+                                        <button disabled={i === (trainings?.length || 0) - 1} onClick={(e) => { e.stopPropagation(); moveTraining(training.id!, 'down'); }} title="Mover para baixo" className="text-zinc-800 hover:text-[#00FF41] disabled:opacity-0">
+                                            <i className="fa-solid fa-chevron-down text-[8px]"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {trainings?.length === 0 && (
+                        <p className="text-[10px] font-black text-zinc-700 uppercase italic tracking-widest text-center py-10 border border-dashed border-zinc-900 rounded-xl">
+                            Nenhum padrão detectado.
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {/* Selection Overlay (Luxury Redesign) */}
+            {showSelection && (
+                <div className="fixed inset-0 bg-black/95 z-[70] flex flex-col p-10 animate-in fade-in duration-500">
+                    <div className="flex justify-between items-start mb-16">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-[#00FF41] uppercase tracking-[0.5em] mb-2">Seleção de Protocolo</span>
+                            <h3 className="text-5xl font-black italic text-white tracking-tighter uppercase leading-none">Escolha o Caminho</h3>
+                        </div>
+                        <button onClick={() => setShowSelection(false)} title="Fechar Seleção" className="w-12 h-12 rounded-full border border-zinc-800 text-zinc-400 flex items-center justify-center hover:text-white hover:border-zinc-400 transition-all">
+                            <i className="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div className="flex-1 flex flex-col gap-10 overflow-y-auto no-scrollbar">
+                        <button
+                            onClick={async () => {
+                                await db.exercises.where('trainingId').equals(0).delete();
+                                setShowSelection(false);
+                                navigate('/session/0');
+                            }}
+                            className="group text-left"
+                        >
+                            <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest block mb-2 group-hover:text-[#00FF41]">Modo: Irrestrito</span>
+                            <h4 className="text-4xl font-black italic text-white uppercase tracking-tighter group-hover:pl-4 transition-all">TREINO LIVRE</h4>
+                        </button>
+
+                        <div className="h-px bg-zinc-900 w-20"></div>
+
+                        {trainings?.map((t) => (
+                            <button
+                                key={t.id}
+                                onClick={() => {
+                                    setShowSelection(false);
+                                    setPreviewTrainingId(t.id!);
+                                }}
+                                className="group text-left"
+                            >
+                                <span className="text-[8px] font-black text-zinc-700 uppercase tracking-widest block mb-2 group-hover:text-[#00FF41]">Protocolo: Padrão</span>
+                                <h4 className="text-4xl font-black italic text-white uppercase tracking-tighter group-hover:pl-4 transition-all">{t.name}</h4>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Weight Input Overlay (Minimalist) */}
+            {showWeightInput && (
+                <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[80] flex items-center justify-center p-8 animate-in zoom-in duration-300">
+                    <div className="w-full max-w-xs text-center">
+                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] mb-6 block">Métrica Alvo</span>
                         <input
                             type="text"
                             inputMode="decimal"
-                            className="flex-1 bg-black/40 border border-zinc-800 rounded-xl px-4 py-2 text-sm text-white focus:border-[#00FF41] outline-none"
-                            placeholder="Ex: 85.5"
+                            className="bg-transparent border-none text-7xl font-black italic text-white text-center w-full focus:outline-none tracking-tighter"
+                            placeholder="00.0"
                             value={weightInput}
                             onChange={(e) => setWeightInput(e.target.value)}
                             autoFocus
                         />
-                        <button onClick={logWeight} style={{ backgroundColor: theme.primary }} className="px-4 rounded-xl text-black font-black text-[10px] uppercase">Salvar</button>
-                        <button onClick={() => setShowWeightInput(false)} className="px-3 rounded-xl bg-zinc-800 text-zinc-500 text-xs"><i className="fa-solid fa-times"></i></button>
+                        <div className="flex justify-center gap-6 mt-10">
+                            <button onClick={logWeight} className="text-sm font-black text-[#00FF41] uppercase tracking-widest">Confirmar</button>
+                            <button onClick={() => setShowWeightInput(false)} className="text-sm font-black text-red-500/50 uppercase tracking-widest">Cancelar</button>
+                        </div>
                     </div>
-                ) : (
-                    <button onClick={() => setShowWeightInput(true)} className="mt-2 text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-colors">
-                        + Registrar Peso Hoje
-                    </button>
-                )}
-            </div>
-
-            {!activeSession && (
-                <div className="grid grid-cols-1 gap-3">
-                    {trainings?.map((training, i) => (
-                        <div key={training.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl flex justify-between items-center group active:scale-[0.98] transition-transform">
-                            <div onClick={() => setPreviewTrainingId(training.id!)} className="flex-1 cursor-pointer">
-                                <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md font-bold tracking-widest uppercase">Pasta</span>
-                                <h3 className="text-xl font-black text-white mt-1 uppercase italic">{training.name}</h3>
-                                <p className="text-xs text-zinc-500 mt-1 font-bold">Ver Treino</p>
-                            </div>
-
-                            <div className="flex flex-col gap-2 border-l border-zinc-800 pl-4 ml-2 items-center">
-                                <div className="flex flex-col gap-1 mb-1">
-                                    <button
-                                        disabled={i === 0}
-                                        onClick={(e) => { e.stopPropagation(); moveTraining(training.id!, 'up'); }}
-                                        className={`w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white hover:border-zinc-600 ${i === 0 ? 'opacity-20 cursor-not-allowed' : ''}`}
-                                    >
-                                        <i className="fa-solid fa-chevron-up text-xs"></i>
-                                    </button>
-                                    <button
-                                        disabled={i === (trainings?.length || 0) - 1}
-                                        onClick={(e) => { e.stopPropagation(); moveTraining(training.id!, 'down'); }}
-                                        className={`w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white hover:border-zinc-600 ${i === (trainings?.length || 0) - 1 ? 'opacity-20 cursor-not-allowed' : ''}`}
-                                    >
-                                        <i className="fa-solid fa-chevron-down text-xs"></i>
-                                    </button>
-                                </div>
-
-                                <button
-                                    title="Editar Treino"
-                                    onClick={(e) => { e.stopPropagation(); navigate(`/training/${training.id}`); }}
-                                    className="w-10 h-10 rounded-xl bg-zinc-950 text-zinc-400 border border-zinc-800 flex items-center justify-center hover:text-white"
-                                    style={{ borderColor: `${theme.primary}20` }}
-                                >
-                                    <i className="fa-solid fa-pen-to-square"></i>
-                                </button>
-                                <button
-                                    title="Duplicar Treino"
-                                    onClick={(e) => { e.stopPropagation(); duplicateTraining(training.id!); }}
-                                    className="w-10 h-10 rounded-xl bg-zinc-600 border border-zinc-800 flex items-center justify-center hover:text-white hover:border-zinc-500"
-                                >
-                                    <i className="fa-solid fa-copy"></i>
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-
-                    {trainings?.length === 0 && (
-                        <div className="text-center p-10 opacity-50">
-                            <i className="fa-solid fa-folder-open text-4xl mb-4"></i>
-                            <p>Nenhum treino criado.</p>
-                        </div>
-                    )}
                 </div>
             )}
 
-            {/* <SettingsButton moved to Header> */}
             <WorkoutPreview
                 trainingId={previewTrainingId}
                 onClose={() => setPreviewTrainingId(null)}

@@ -13,6 +13,8 @@ export interface Exercise {
     restTimes: number[];
     // reps?: string; // Removed in favor of setReps
     setReps?: string[]; // Array of reps for each set (e.g. ["12", "10", "8"])
+    lastWeights?: number[];
+    lastRPEs?: number[];
     notes?: string;
     order: number;
 }
@@ -23,7 +25,13 @@ export interface HistoryItem {
     sets: number;
     timestamp: number;
     trainingName: string;
-    details?: { name: string; sets: number; }[];
+    details?: {
+        name: string;
+        sets: number;
+        reps?: string[];
+        weights?: number[];
+        rpes?: number[];
+    }[];
 }
 
 export interface WeightLog {
@@ -62,6 +70,7 @@ class NeoPulseDB extends Dexie {
             history: '++id, timestamp',
             library: 'id, name, muscleGroup'
         });
+        this.version(8).stores({}); // Schema didn't change indices, only fields
     }
 
     async seed() {

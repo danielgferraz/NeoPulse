@@ -6,6 +6,9 @@ import { db } from '../services/db';
 interface HistoryItem {
     name: string;
     sets: number;
+    reps?: string[];
+    weights?: number[];
+    rpes?: number[];
     totalDuration?: number;
 }
 
@@ -87,18 +90,32 @@ const SummaryView: React.FC = () => {
                     <div className="text-zinc-500 text-sm italic">Nenhum exercício registrado detalhadamente.</div>
                 ) : (
                     history.map((item, idx) => (
-                        <div key={idx} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-2xl flex items-center justify-between text-left">
-                            <div>
-                                <h3 className="text-white font-bold text-sm uppercase tracking-tight">{item.name}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-bold uppercase">
-                                        {item.sets} {item.sets === 1 ? 'Série' : 'Séries'}
-                                    </span>
+                        <div key={idx} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-3xl flex flex-col gap-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-white font-black text-sm uppercase tracking-tight italic">{item.name}</h3>
+                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{item.sets} {item.sets === 1 ? 'Série' : 'Séries'}</p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                                    <i className="fa-solid fa-check text-green-500 text-xs"></i>
                                 </div>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                                <i className="fa-solid fa-check text-green-500 text-xs"></i>
-                            </div>
+
+                            {item.weights && item.weights.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-zinc-800/50">
+                                    {item.weights.map((w, sIdx) => (
+                                        <div key={sIdx} className="flex-1 min-w-[60px] bg-black/40 rounded-xl p-2 border border-zinc-800">
+                                            <div className="flex justify-between items-center mb-0.5">
+                                                <span className="text-[8px] font-black text-zinc-600 uppercase">S{sIdx + 1}</span>
+                                                {item.rpes && item.rpes[sIdx] && (
+                                                    <span className="text-[8px] font-black text-[#00FF41]">RPE {item.rpes[sIdx]}</span>
+                                                )}
+                                            </div>
+                                            <div className="text-xs font-black text-white italic">{w}kg</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}

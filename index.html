@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="pt-BR" class="dark">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NeoPulse - Treino Minimalista</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link rel="manifest" href="/manifest.json">
-    <script type="importmap">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NeoPulse - Treino Minimalista</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="manifest" href="/manifest.json">
+  <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@19.0.0",
@@ -19,67 +20,83 @@
   }
 }
 </script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap');
-      
-      :root {
-        --primary: #00FF41;
-      }
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap');
 
-      body {
-        margin: 0;
-        font-family: 'Inter', sans-serif;
-        background-color: black;
-        color: white;
-        -webkit-tap-highlight-color: transparent;
-        overflow-x: hidden;
-        height: 100%;
-      }
+    :root {
+      --primary: #00FF41;
+    }
 
-      #root {
-        min-height: 100vh;
-      }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: black;
+      color: white;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+      height: 100%;
+    }
 
-      .mono {
-        font-family: 'JetBrains+Mono', monospace;
-      }
+    #root {
+      min-height: 100vh;
+    }
 
-      ::-webkit-scrollbar {
-        width: 4px;
-      }
+    .mono {
+      font-family: 'JetBrains+Mono', monospace;
+    }
 
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
 
-      ::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 10px;
-      }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
-      .safe-bottom {
-        padding-bottom: env(safe-area-inset-bottom, 24px);
-      }
+    ::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 10px;
+    }
 
-      button {
-        touch-action: manipulation;
-      }
-    </style>
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom, 24px);
+    }
+
+    .vertical-text {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    button {
+      touch-action: manipulation;
+    }
+  </style>
 </head>
+
 <body class="bg-black">
-    <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          // Registra o sw.js na raiz
-          navigator.serviceWorker.register('./sw.js').then(registration => {
-            console.log('SW registrado com sucesso');
-          }).catch(err => {
-            console.log('SW falhou:', err);
-          });
+  <div id="root"></div>
+  <script type="module" src="index.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Registra o sw.js na raiz
+        navigator.serviceWorker.register('./sw.js').then(registration => {
+          console.log('SW registrado com sucesso');
+        }).catch(err => {
+          console.log('SW falhou:', err);
         });
-      }
-    </script>
+      });
+    }
+  </script>
 </body>
+
 </html>

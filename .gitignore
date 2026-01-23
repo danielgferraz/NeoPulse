@@ -25,3 +25,4 @@ dist-ssr
 *.jks
 keystore_final.txt
 /neopulse
+.agent

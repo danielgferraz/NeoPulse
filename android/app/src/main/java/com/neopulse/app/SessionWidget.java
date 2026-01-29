@@ -125,12 +125,9 @@ public class SessionWidget extends AppWidgetProvider {
 
             prefs.edit().putString("neopulse_widget_command", command).commit();
             
-            // Wake up the app so the PWA can process the command
-            Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                context.startActivity(launchIntent);
-            }
+            // We only register the command in prefs. 
+            // The PWA will consume it when active or resumed.
+            // Opening the app automatically is intrusive.
 
             // Notify WidgetProvider to refresh UI if needed, but the PWA polling is the main mechanism.
             // We refresh the widget anyway to show feedback.

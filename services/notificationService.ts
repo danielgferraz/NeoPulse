@@ -72,7 +72,7 @@ export const NotificationService = {
         }
     },
 
-    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_ticker', timerStart = 0, timerEnd = 0, isStopwatch = false) {
+    async showStickyNotification(title: string, body: string, isPaused = false, id = 1001, channelId = 'neopulse_premium_v2', timerStart = 0, timerEnd = 0, isStopwatch = false) {
         if (Capacitor.getPlatform() !== 'android') return;
 
         if (isPaused) {
@@ -94,7 +94,7 @@ export const NotificationService = {
 
         try {
             await TimerNotification.startTimer({
-                title,
+                title: title.toUpperCase(), // Match Java style for consistency
                 body,
                 timerStart,
                 timerEnd,
@@ -102,7 +102,7 @@ export const NotificationService = {
             });
         } catch (e) {
             console.error('Failed to start native timer notification', e);
-            // Fallback to local notifications if native plugin fails
+            // Fallback with higher visibility
             await LocalNotifications.schedule({
                 notifications: [{
                     id,

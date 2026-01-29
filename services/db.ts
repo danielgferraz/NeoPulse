@@ -11,12 +11,30 @@ export interface Exercise {
     trainingId: number;
     name: string;
     restTimes: number[];
-    // reps?: string; // Removed in favor of setReps
-    setReps?: string[]; // Array of reps for each set (e.g. ["12", "10", "8"])
+    setReps?: string[]; // Array of actual reps performed
+    targetReps?: string[]; // Planned reps (Goal)
     lastWeights?: number[];
     lastRPEs?: number[];
     notes?: string;
     order: number;
+}
+
+export interface ActiveSession {
+    id: string; // 'current'
+    trainingId: number;
+    startTime: number;
+    exerciseIndex: number;
+    setIndex: number;
+    completedExercises: {
+        name: string;
+        sets: number;
+        reps?: string[];
+        weights?: number[];
+        rpes?: number[];
+        totalDuration?: number;
+    }[];
+    extraExercises: Exercise[];
+    completedIndices: number[];
 }
 
 export interface HistoryItem {
@@ -55,6 +73,7 @@ class NeoPulseDB extends Dexie {
     history!: Table<HistoryItem>;
     weightLogs!: Table<WeightLog>;
     library!: Table<LibraryExercise>;
+    activeSession!: Table<ActiveSession>;
 
     constructor() {
         super('NeoPulseDB');
@@ -70,7 +89,10 @@ class NeoPulseDB extends Dexie {
             history: '++id, timestamp',
             library: 'id, name, muscleGroup'
         });
-        this.version(8).stores({}); // Schema didn't change indices, only fields
+        this.version(8).stores({});
+        this.version(9).stores({
+            activeSession: 'id'
+        });
     }
 
     async seed() {

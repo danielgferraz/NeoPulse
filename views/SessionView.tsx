@@ -10,6 +10,7 @@ import { WidgetService } from '../services/widgetService';
 import { Preferences } from '@capacitor/preferences';
 import ExerciseEditor from '../components/ExerciseEditor';
 import ExerciseSelector from '../components/ExerciseSelector';
+import WorkoutTracker from '../components/WorkoutTracker';
 
 const SessionView: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -58,11 +59,13 @@ const SessionView: React.FC = () => {
     const [completedIndices, setCompletedIndices] = useState<number[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
 
-    // Deleted manual 'newExercise' state as it is now handled by ExerciseSelector
-    const lastSessionIndices = useRef({ exercise: -1, set: -1 });
-    const [currentWeight, setCurrentWeight] = useState<string>('');
-    const [currentRPE, setCurrentRPE] = useState<number>(8);
-    const exercisePerformance = useRef<{ reps: string; weight: number; rpe: number }[]>([]);
+    // Advanced Set State
+    const [completedSets, setCompletedSets] = useState<{ [exerciseId: number]: boolean[] }>({});
+    const [actualReps, setActualReps] = useState<{ [exerciseId: number]: string[] }>({});
+    const [actualWeights, setActualWeights] = useState<{ [exerciseId: number]: string[] }>({});
+
+    // Current Exercise Helper
+    const currentExId = useMemo(() => exercises?.[currentExerciseIndex]?.id || currentExerciseIndex + 1000, [exercises, currentExerciseIndex]);
 
     const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
 
@@ -120,40 +123,46 @@ const SessionView: React.FC = () => {
         };
     }, [currentExercise, currentSetIndex, isStopwatch, duration]);
 
-    // Timer & Stopwatch Logic
+    // Timer & Stopwatch Logic - Silent Notification Updates
     useEffect(() => {
-        if (isActive && !isStopwatch) {
-            NotificationService.showStickyNotification(
-                `Treino: ${currentExercise?.name} `,
-                `Série ${currentSetIndex + 1} | Descanso Ativo`,
-                !isActive,
-                1001,
-                'neopulse_ticker',
-                0,
-                Date.now() + timeLeft * 1000,
-                false
-            );
-        } else if (isActive && isStopwatch) {
-            NotificationService.showStickyNotification(
-                `Treino: ${currentExercise?.name} `,
-                `Cronômetro Ativo`,
-                !isActive,
-                1001,
-                'neopulse_ticker',
-                Date.now() - stopwatchTime * 1000,
-                0,
-                true
-            );
-        } else if (!isActive && currentExercise && hasRestored) {
-            NotificationService.showStickyNotification(
-                `Pausado: ${currentExercise?.name} `,
-                isStopwatch ? `Cronômetro Pausado` : `Série ${currentSetIndex + 1} | Pausado`,
-                true,
-                1001,
-                'neopulse_ticker'
-            );
-        }
-    }, [isActive, isStopwatch, currentExercise, currentSetIndex, hasRestored]);
+        if (!hasRestored) return;
+
+        const updateNotification = async () => {
+            if (isActive && !isStopwatch) {
+                await NotificationService.showStickyNotification(
+                    `${currentExercise?.name}`,
+                    `DESCANSO ATIVO | Série ${currentSetIndex + 1}`,
+                    false,
+                    1001,
+                    'neopulse_ticker',
+                    0,
+                    Date.now() + timeLeft * 1000,
+                    false
+                );
+            } else if (isActive && isStopwatch) {
+                await NotificationService.showStickyNotification(
+                    `${currentExercise?.name}`,
+                    `EXECUÇÃO | Cronômetro Ativo`,
+                    false,
+                    1001,
+                    'neopulse_ticker',
+                    Date.now() - stopwatchTime * 1000,
+                    0,
+                    true
+                );
+            } else if (!isActive && currentExercise) {
+                await NotificationService.showStickyNotification(
+                    `${currentExercise?.name}`,
+                    isStopwatch ? `PAUSADO | Cronômetro` : `PAUSADO | Série ${currentSetIndex + 1}`,
+                    true,
+                    1001,
+                    'neopulse_ticker'
+                );
+            }
+        };
+
+        updateNotification();
+    }, [isActive, isStopwatch, currentExercise?.name, currentSetIndex, hasRestored]);
 
     // Timer Interval Only
     // Timer Interval Logic
@@ -198,33 +207,14 @@ const SessionView: React.FC = () => {
                         if (saved.extraExercises) {
                             setExtraExercises(saved.extraExercises);
                         }
-
-                        const now = Date.now();
-                        const elapsed = Math.floor((now - saved.lastTimestamp) / 1000);
-
-                        if (saved.isActive) {
-                            if (saved.isStopwatch) {
-                                setStopwatchTime(saved.stopwatchTime + elapsed);
-                                setIsStopwatch(true);
-                                setIsActive(true);
-                            } else {
-                                const newTimeLeft = Math.max(0, saved.timeLeft - elapsed);
-                                setTimeLeft(newTimeLeft);
-                                setIsStopwatch(false);
-                                if (newTimeLeft > 0) {
-                                    setIsActive(true);
-                                }
-                            }
-                        } else {
-                            setTimeLeft(saved.timeLeft);
-                            setDuration(saved.duration || 60); // Restore duration or fallback
-                            setStopwatchTime(saved.stopwatchTime);
-                            setIsStopwatch(saved.isStopwatch);
-                            setIsActive(false);
-                        }
-                        // Update ref so that reset effect knows we've already set these
-                        lastSessionIndices.current = { exercise: saved.exerciseIndex, set: saved.setIndex };
                     }
+                }
+
+                // Also check DB for richer state (sets, reps, weights)
+                const dbSession = await db.activeSession.get('current');
+                if (dbSession && dbSession.trainingId === trainingId) {
+                    setCompletedIndices(dbSession.completedIndices || []);
+                    setExtraExercises(dbSession.extraExercises || []);
                 }
             } catch (e) {
                 console.error("Error restoring session:", e);
@@ -236,62 +226,56 @@ const SessionView: React.FC = () => {
         restoreSession();
     }, [trainingId]);
 
-    // Persistence: Auto-save state
+    // Persistence: Auto-save state to DB
     useEffect(() => {
         if (!hasRestored || !exercises || exercises.length === 0) return;
 
-        Preferences.set({
-            key: 'neopulse_persistent_session',
-            value: JSON.stringify({
+        const saveSession = async () => {
+            await db.activeSession.put({
+                id: 'current',
                 trainingId,
                 exerciseIndex: currentExerciseIndex,
                 setIndex: currentSetIndex,
-                exercise: currentExercise.name,
-                next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
-                totalSets: currentExercise.restTimes.length + 1,
-                timeLeft,
-                duration,
-                isActive,
-                isStopwatch,
-                stopwatchTime,
-                lastTimestamp: Date.now(),
-                extraExercises: isFreeTraining ? [] : extraExercises // Only save extra if not free, as free saves to DB directly
-            })
-        });
-    }, [trainingId, currentExerciseIndex, currentSetIndex, timeLeft, isActive, isStopwatch, stopwatchTime, hasRestored, exercises, extraExercises]);
+                startTime: Date.now(), // Minimalist start time tracking
+                completedExercises: completedExercises.current,
+                extraExercises,
+                completedIndices
+            });
 
-    // Reset weight/rpe and auto-fill if possible when exercise/set changes
+            // Keep Preferences for compatibility/simple info
+            Preferences.set({
+                key: 'neopulse_persistent_session',
+                value: JSON.stringify({
+                    trainingId,
+                    exerciseIndex: currentExerciseIndex,
+                    setIndex: currentSetIndex,
+                    exercise: currentExercise?.name,
+                    lastTimestamp: Date.now(),
+                })
+            });
+        };
+
+        const timer = setTimeout(saveSession, 1000); // Debounce saves
+        return () => clearTimeout(timer);
+    }, [trainingId, currentExerciseIndex, currentSetIndex, timeLeft, isActive, isStopwatch, stopwatchTime, hasRestored, exercises, extraExercises, completedIndices]);
+
+    // Reset auto-fill if possible when exercise/set changes
     useEffect(() => {
         if (currentExercise && hasRestored) {
-            const isDifferentExercise = lastSessionIndices.current.exercise !== currentExerciseIndex;
-            const isDifferentSet = lastSessionIndices.current.set !== currentSetIndex;
+            const newDuration = currentExercise.restTimes[Math.min(currentSetIndex, currentExercise.restTimes.length - 1)] || 90;
+            setTimeLeft(newDuration);
+            setDuration(newDuration);
 
-            if (isDifferentExercise) {
-                // New Exercise: Try to pre-fill with last session's first set weight
-                if (currentExercise.lastWeights && currentExercise.lastWeights.length > 0) {
-                    setCurrentWeight(currentExercise.lastWeights[0].toString());
-                } else {
-                    setCurrentWeight('');
-                }
-            }
-
-            if (isDifferentExercise || isDifferentSet) {
-                const newDuration = currentExercise.restTimes[Math.min(currentSetIndex, currentExercise.restTimes.length - 1)] || 90;
-                setTimeLeft(newDuration);
-                setDuration(newDuration);
-                lastSessionIndices.current = { exercise: currentExerciseIndex, set: currentSetIndex };
-
-                // Sync widget (Initial state for this exercise/set)
-                if (exercises) {
-                    WidgetService.syncSession({
-                        exercise: currentExercise.name,
-                        next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
-                        currentSet: currentSetIndex + 1,
-                        totalSets: currentExercise.restTimes.length + 1,
-                        timerEnd: duration ? (Date.now() + duration * 1000) : null,
-                        timerStart: null
-                    });
-                }
+            // Sync widget (Initial state for this exercise/set)
+            if (exercises) {
+                WidgetService.syncSession({
+                    exercise: currentExercise.name,
+                    next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
+                    currentSet: currentSetIndex + 1,
+                    totalSets: currentExercise.restTimes.length + 1,
+                    timerEnd: duration ? (Date.now() + duration * 1000) : null,
+                    timerStart: null
+                });
             }
         }
     }, [currentExercise, currentSetIndex, exercises, currentExerciseIndex, hasRestored]);
@@ -308,13 +292,12 @@ const SessionView: React.FC = () => {
     const handleSetComplete = async () => {
         if (!currentExercise) return;
 
-        // Save current set performance
-        const reps = currentExercise.setReps?.[currentSetIndex] || "0";
-        exercisePerformance.current.push({
-            reps,
-            weight: parseFloat(currentWeight) || 0,
-            rpe: currentRPE
-        });
+        const setIdx = currentSetIndex;
+        // Mark current set as completed if not already
+        setCompletedSets(prev => ({
+            ...prev,
+            [currentExId]: prev[currentExId] ? prev[currentExId].map((v, i) => i === setIdx ? true : v) : Array(currentExercise.restTimes.length + 1).fill(false).map((v, i) => i === setIdx ? true : v)
+        }));
 
         if (currentSetIndex < currentExercise.restTimes.length) {
             const restDuration = currentExercise.restTimes[currentSetIndex];
@@ -335,8 +318,10 @@ const SessionView: React.FC = () => {
                 });
             }
         } else {
-            const lastRest = currentExercise.restTimes[currentExercise.restTimes.length - 1];
-            finishExercise(lastRest);
+            // Exercise finished! 
+            // We use the last rest time of current exercise as transition time or default 60s
+            const transitionRest = currentExercise.restTimes[currentExercise.restTimes.length - 1] || 60;
+            finishExercise(transitionRest);
         }
     };
 
@@ -346,22 +331,22 @@ const SessionView: React.FC = () => {
         // Log the exercise that just finished
         const currentEx = exercises[currentExerciseIndex];
         if (currentEx) {
+            const reps = actualReps[currentExId] || [];
+            const weights = (actualWeights[currentExId] || []).map(w => parseFloat(w) || 0);
+
             completedExercises.current.push({
                 name: currentEx.name,
                 sets: currentEx.restTimes.length + 1,
-                reps: exercisePerformance.current.map(p => p.reps),
-                weights: exercisePerformance.current.map(p => p.weight),
-                rpes: exercisePerformance.current.map(p => p.rpe)
+                reps: reps,
+                weights: weights,
+                rpes: Array(reps.length).fill(8) // Default RPE as select was removed
             });
 
             // Update Exercise Table with "Last Used" weights for next time
             await db.exercises.update(currentEx.id!, {
-                lastWeights: exercisePerformance.current.map(p => p.weight),
-                lastRPEs: exercisePerformance.current.map(p => p.rpe)
+                lastWeights: weights,
+                setReps: reps
             });
-
-            // Clear for next exercise
-            exercisePerformance.current = [];
 
             // Mark as visually completed
             setCompletedIndices(prev => [...prev, currentExerciseIndex]);
@@ -405,6 +390,7 @@ const SessionView: React.FC = () => {
     };
 
     const handleCancelWorkout = async () => {
+        await db.activeSession.delete('current');
         await Preferences.remove({ key: 'neopulse_persistent_session' });
         WidgetService.syncSession(null);
         navigate('/');
@@ -423,6 +409,8 @@ const SessionView: React.FC = () => {
     };
 
     const finalizeAndNavigate = async () => {
+        // Clear active session on finish
+        await db.activeSession.delete('current');
         const recentHistory = await db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray();
         const weightLogs = await db.weightLogs.orderBy('timestamp').reverse().limit(1).toArray();
 
@@ -733,73 +721,63 @@ const SessionView: React.FC = () => {
 
     return (
         <div className="fixed inset-0 bg-black flex flex-col animate-in fade-in duration-500 overflow-hidden z-[60]">
-            {/* Compact HUD Header */}
-            <div className="w-full h-[70px] flex items-center justify-between px-6 pt-4 shrink-0 border-b border-zinc-900/50">
-                <div className="flex flex-col">
+            {/* Ultra-Compact Top Nav */}
+            <div className="w-full px-5 pt-6 pb-2 flex items-center justify-between shrink-0">
+                <div className="flex flex-col max-w-[70%]">
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-[#00FF41] uppercase tracking-[0.2em]">{currentExerciseIndex + 1} / {exercises.length}</span>
-                        <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
-                            Série {currentSetIndex + 1}/{currentExercise.restTimes.length + 1}
+                        <span className="text-[10px] font-black italic text-[#00FF41]">
+                            E{currentExerciseIndex + 1}
                         </span>
+                        <div className="h-1 w-20 bg-zinc-900 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-[#00FF41] transition-all duration-500"
+                                style={{ width: `${((currentExerciseIndex + 1) / exercises.length) * 100}%` }}
+                            ></div>
+                        </div>
                     </div>
-                    <h2 className="text-sm font-black text-white uppercase italic leading-tight truncate max-w-[200px] mt-0.5">{currentExercise.name}</h2>
+                    <h1 className="text-2xl font-black italic text-white uppercase tracking-tighter truncate leading-none mt-1">
+                        {currentExercise?.name}
+                    </h1>
                 </div>
-                <div className="flex gap-2">
+
+                <div className="flex items-center gap-2">
                     <button
-                        title="Ver Cronograma"
                         onClick={() => setShowPlaylist(true)}
-                        className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 active:scale-90 transition-transform"
+                        className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500"
+                        title="Playlist"
                     >
-                        <i className="fa-solid fa-list-ul text-xs"></i>
+                        <i className="fa-solid fa-list-ul text-[10px]"></i>
                     </button>
                     <button
-                        title="Adicionar Exercício"
                         onClick={() => setShowAddModal(true)}
-                        className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 active:scale-90 transition-transform"
+                        className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500"
+                        title="Adicionar"
                     >
-                        <i className="fa-solid fa-plus text-xs"></i>
+                        <i className="fa-solid fa-plus text-[10px]"></i>
                     </button>
                 </div>
             </div>
 
-            {/* Prominent Notes Box (if exists) */}
-            {currentExercise.notes && (
-                <div className="w-full px-6 pt-3 shrink-0 animate-in fade-in slide-in-from-top-2 duration-700">
-                    <div className="bg-zinc-900/30 border border-[#00FF41]/10 p-2.5 rounded-2xl flex gap-3 items-center backdrop-blur-sm relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#00FF41]/5 to-transparent pointer-events-none"></div>
-                        <div className="w-6 h-6 rounded-lg bg-[#00FF41]/10 flex items-center justify-center shrink-0 border border-[#00FF41]/20">
-                            <i className="fa-solid fa-note-sticky text-[#00FF41] text-[10px]"></i>
-                        </div>
-                        <p className="text-[10px] text-zinc-400 font-bold leading-tight italic truncate">
-                            {currentExercise.notes}
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* Set Progress Dashes */}
-            <div className="flex gap-1.5 px-6 pt-4 shrink-0">
-                {activeExerciseSets.map((_, i) => (
+            {/* Global Progress Bar */}
+            <div className="w-full px-6 flex gap-1 mb-2">
+                {exercises.map((_, i) => (
                     <div
                         key={i}
-                        className="h-1.5 flex-1 rounded-full transition-all duration-500"
+                        className="h-1 flex-1 rounded-full transition-all duration-500"
                         style={{
-                            backgroundColor: i < currentSetIndex
-                                ? theme.primary
-                                : i === currentSetIndex
-                                    ? `${theme.primary}40`
-                                    : 'rgba(255,255,255,0.05)',
-                            boxShadow: i < currentSetIndex
-                                ? `0 0 10px ${theme.primary}40`
-                                : 'none'
+                            backgroundColor: i <= currentExerciseIndex
+                                ? '#00FF41'
+                                : 'rgba(255,255,255,0.05)',
+                            opacity: i < currentExerciseIndex ? 0.3 : 1
                         }}
                     ></div>
                 ))}
             </div>
 
-            {/* Main Timer Display */}
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-2">
-                <div className="relative transform scale-[0.82] sm:scale-95 transition-transform">
+
+            {/* Compact Timer Stage */}
+            <div className="w-full flex flex-col items-center justify-center py-2 shrink-0 relative bg-gradient-to-b from-black to-transparent">
+                <div className="transform scale-90 transition-all duration-500">
                     <Timer
                         timeLeft={isStopwatch ? stopwatchTime : timeLeft}
                         isActive={isActive}
@@ -808,8 +786,6 @@ const SessionView: React.FC = () => {
                         onToggle={() => {
                             const newActive = !isActive;
                             setIsActive(newActive);
-
-                            // Sync widget on manual toggle
                             if (exercises) {
                                 WidgetService.syncSession({
                                     exercise: currentExercise.name,
@@ -834,98 +810,66 @@ const SessionView: React.FC = () => {
                         hapticPattern={hapticPattern}
                     />
                 </div>
-
-                {/* Meta reps as a small HUD below timer */}
-                {currentExercise.setReps?.[currentSetIndex] && (
-                    <div className="mt-2 text-center animate-pulse">
-                        <span className="text-[10px] font-black italic text-[#00FF41] uppercase tracking-[0.2em] bg-[#00FF41]/10 px-3 py-1 rounded-full border border-[#00FF41]/20">
-                            Meta: {currentExercise.setReps[currentSetIndex]} Reps
-                        </span>
-                    </div>
-                )}
             </div>
 
-            {/* Adrenaline Console (Performance + Action) */}
-            <div className="w-full shrink-0 px-6 pb-6 pt-2">
-                <div className="w-full max-w-sm mx-auto p-3.5 bg-zinc-900 border border-zinc-800 rounded-[32px] shadow-2xl relative overflow-hidden">
+            {/* Workout Tracker Component */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+                <WorkoutTracker
+                    exercise={currentExercise}
+                    currentSetIndex={currentSetIndex}
+                    completedSets={completedSets[currentExId] || Array(currentExercise.restTimes.length + 1).fill(false)}
+                    actualReps={actualReps[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')}
+                    actualWeights={actualWeights[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')}
+                    onSetToggle={(idx) => {
+                        setCompletedSets(prev => ({
+                            ...prev,
+                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length + 1).fill(false)).map((v, i) => i === idx ? !v : v)
+                        }));
+                    }}
+                    onRepChange={(idx, val) => {
+                        setActualReps(prev => ({
+                            ...prev,
+                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')).map((v, i) => i === idx ? val : v)
+                        }));
+                    }}
+                    onWeightChange={(idx, val) => {
+                        setActualWeights(prev => ({
+                            ...prev,
+                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')).map((v, i) => i === idx ? val : v)
+                        }));
+                    }}
+                />
+            </div>
 
-                    {/* Last Session Reminder */}
-                    {currentExercise.lastWeights && (
-                        <div className="flex justify-center mb-3">
-                            <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-zinc-800/50">
-                                <i className="fa-solid fa-clock-rotate-left text-[#00FF41] text-[8px] opacity-70"></i>
-                                <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Última: <span className="text-zinc-200">{currentExercise.lastWeights[currentSetIndex] || currentExercise.lastWeights[0]}kg</span></span>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex gap-2 mb-3">
-                        <div className="flex-[5] flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-zinc-700 uppercase ml-2 tracking-widest">Peso</span>
-                            <div className="bg-black/40 border border-zinc-800/50 rounded-2xl h-11 flex items-center px-3 focus-within:border-[#00FF41]/30 transition-colors">
-                                <i className="fa-solid fa-weight-hanging text-zinc-700 text-[10px]"></i>
-                                <input
-                                    type="number"
-                                    placeholder="0"
-                                    value={currentWeight}
-                                    onChange={(e) => setCurrentWeight(e.target.value)}
-                                    className="bg-transparent border-none text-white font-black text-base w-full focus:outline-none placeholder:text-zinc-800 ml-2"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex-[4] flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-zinc-700 uppercase ml-2 tracking-widest">Esforço</span>
-                            <div className="bg-black/40 border border-zinc-800/50 rounded-2xl h-11 flex items-center px-3 focus-within:border-[#00FF41]/30 transition-colors relative">
-                                <i className="fa-solid fa-gauge-high text-zinc-700 text-[10px]"></i>
-                                <select
-                                    value={currentRPE}
-                                    onChange={(e) => setCurrentRPE(parseInt(e.target.value))}
-                                    className="bg-transparent border-none text-white font-black text-xs w-full focus:outline-none appearance-none ml-2 z-10"
-                                    title="Dificuldade (RPE)"
-                                >
-                                    {[6, 7, 8, 9, 10].map(val => (
-                                        <option key={val} value={val} className="bg-zinc-900">RPE {val}</option>
-                                    ))}
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-3 text-[8px] text-zinc-800 pointer-events-none"></i>
-                            </div>
-                        </div>
-                    </div>
+            {/* Actions Bar - Robust & Visual */}
+            <div className="w-full shrink-0 bg-black/80 backdrop-blur-2xl border-t border-zinc-900 px-6 py-6 pb-8">
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => setShowCancelConfirm(true)}
+                        className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-red-500/40 active:text-red-500 active:scale-90 transition-all"
+                        title="Cancelar"
+                    >
+                        <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
 
                     <button
                         onClick={handleSetComplete}
                         disabled={isActive}
                         style={{ backgroundColor: isActive ? '#18181b' : theme.primary }}
-                        className={`w-full h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-sm flex items-center justify-center gap-2 transition-all shadow-lg ${isActive ? 'text-zinc-700 border border-zinc-800 opacity-50' : 'text-black active:scale-[0.98]'}`}
+                        className={`flex-1 h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-xs flex items-center justify-center gap-3 transition-all ${isActive ? 'text-zinc-700 border border-zinc-800' : 'text-black shadow-[0_15px_30px_rgba(0,255,65,0.15)] active:scale-[0.98]'}`}
                     >
-                        <span>{currentSetIndex === currentExercise.restTimes.length ? 'Finalizar Ex' : 'Próxima Série'}</span>
-                        <i className={`fa-solid ${currentSetIndex === currentExercise.restTimes.length ? 'fa-flag-checkered' : 'fa-arrow-right-long'} text-xs`}></i>
+                        <span className="text-sm">{currentSetIndex === currentExercise.restTimes.length ? 'Finalizar Ex' : 'Próxima Série'}</span>
+                        <i className="fa-solid fa-bolt text-sm"></i>
+                    </button>
+
+                    <button
+                        onClick={() => setShowFinishConfirm(true)}
+                        className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#00FF41]/40 active:text-[#00FF41] active:scale-90 transition-all"
+                        title="Terminar"
+                    >
+                        <i className="fa-solid fa-flag-checkered text-lg"></i>
                     </button>
                 </div>
-            </div>
-
-            {/* Nav Peek */}
-            <div className="flex justify-between px-8 pb-8 sm:pb-10 shrink-0">
-                <button
-                    onClick={() => setShowCancelConfirm(true)}
-                    className="text-[10px] font-black uppercase tracking-widest text-red-500/80 hover:text-red-500 transition-colors"
-                >
-                    <i className="fa-solid fa-xmark mr-2"></i> Cancelar
-                </button>
-                <div className="flex-1 flex justify-center">
-                    {currentExerciseIndex + 1 < exercises.length && (
-                        <div className="text-center opacity-40">
-                            <p className="text-[8px] font-black uppercase tracking-widest text-zinc-500">Próximo</p>
-                            <p className="text-[10px] font-black uppercase italic text-zinc-400 truncate max-w-[120px]">{exercises[currentExerciseIndex + 1]?.name || '---'}</p>
-                        </div>
-                    )}
-                </div>
-                <button
-                    onClick={() => setShowFinishConfirm(true)}
-                    className="text-[10px] font-black uppercase tracking-widest text-[#00FF41] hover:text-white transition-colors"
-                >
-                    Terminar <i className="fa-solid fa-flag-checkered ml-2"></i>
-                </button>
             </div>
 
             {modals}

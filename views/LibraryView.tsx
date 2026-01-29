@@ -31,7 +31,7 @@ const LibraryView: React.FC = () => {
             name: ex.name,
             restTimes: ex.defaultRestTime ? [ex.defaultRestTime, ex.defaultRestTime, ex.defaultRestTime] : [60, 60, 60],
             order: currentTrainingExercises?.length || 0,
-            reps: '8-12' // Default
+            setReps: ['12', '12', '12'] // Default 3 sets
         });
 
         navigate(-1);

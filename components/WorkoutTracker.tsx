@@ -12,6 +12,7 @@ interface WorkoutTrackerProps {
     onSetToggle: (index: number) => void;
     onRepChange: (index: number, value: string) => void;
     onWeightChange: (index: number, value: string) => void;
+    onDeleteSet: (index: number) => void;
 }
 
 const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
@@ -22,7 +23,8 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
     actualWeights,
     onSetToggle,
     onRepChange,
-    onWeightChange
+    onWeightChange,
+    onDeleteSet
 }) => {
     const { theme } = useTheme();
     const totalSets = exercise.restTimes.length + 1;
@@ -37,7 +39,7 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
                 return (
                     <div
                         key={i}
-                        className={`grid grid-cols-[32px_1fr_65px_65px_40px] gap-2 items-center px-3 py-2 rounded-xl border transition-all ${isCurrent
+                        className={`grid grid-cols-[32px_1fr_62px_62px_38px_28px] gap-1.5 items-center px-3 py-2 rounded-xl border transition-all ${isCurrent
                             ? 'bg-zinc-900 border-[#00FF41]/30'
                             : isCompleted
                                 ? 'bg-black/40 border-zinc-900/50 opacity-40'
@@ -65,8 +67,8 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
                                 inputMode="decimal"
                                 value={actualWeights[i] || ''}
                                 onChange={(e) => onWeightChange(i, e.target.value)}
-                                placeholder="--"
-                                className="bg-zinc-900/50 border border-zinc-800/50 rounded-lg h-7 text-white font-black text-[10px] w-full text-center focus:outline-none focus:border-[#00FF41]/30 placeholder:text-zinc-800"
+                                placeholder={exercise.lastWeights?.[i]?.toString() || "--"}
+                                className="bg-zinc-900/50 border border-zinc-800/50 rounded-lg h-7 text-white font-black text-[10px] w-full text-center focus:outline-none focus:border-[#00FF41]/30 placeholder:text-zinc-700"
                             />
                         </div>
 
@@ -78,12 +80,11 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
                                 inputMode="numeric"
                                 value={actualReps[i] || ''}
                                 onChange={(e) => onRepChange(i, e.target.value)}
-                                placeholder="--"
-                                className="bg-zinc-900/50 border border-zinc-800/50 rounded-lg h-7 text-white font-black text-[10px] w-full text-center focus:outline-none focus:border-[#00FF41]/30 placeholder:text-zinc-800"
+                                placeholder={targetText}
+                                className="bg-zinc-900/50 border border-zinc-800/50 rounded-lg h-7 text-white font-black text-[10px] w-full text-center focus:outline-none focus:border-[#00FF41]/30 placeholder:text-zinc-700"
                             />
                         </div>
 
-                        {/* Status Checkbox */}
                         <button
                             onClick={() => onSetToggle(i)}
                             title="Completar Série"
@@ -93,6 +94,19 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
                                 }`}
                         >
                             <i className={`fa-solid ${isCompleted ? 'fa-check' : 'fa-circle-check'} text-[10px]`}></i>
+                        </button>
+
+                        {/* Delete Set Button */}
+                        <button
+                            onClick={() => {
+                                if (totalSets > 1 && confirm('Excluir esta série?')) {
+                                    onDeleteSet(i);
+                                }
+                            }}
+                            title="Excluir Série"
+                            className={`w-7 h-7 flex items-center justify-center text-zinc-900 hover:text-red-500 transition-colors ${totalSets <= 1 ? 'opacity-0 pointer-events-none' : ''}`}
+                        >
+                            <i className="fa-solid fa-trash-can text-[10px]"></i>
                         </button>
                     </div>
                 );

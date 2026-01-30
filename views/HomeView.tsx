@@ -58,16 +58,26 @@ const WorkoutPreview = ({ trainingId, onClose, navigate, theme }: { trainingId: 
                 )}
             </div>
 
-            <div className="pt-8 relative z-10 border-t border-zinc-900">
+            <div className="pt-8 relative z-10 border-t border-zinc-900 grid grid-cols-[1fr_auto] gap-3">
                 <button
                     onClick={() => {
                         onClose();
                         navigate(`/session/${trainingId}`);
                     }}
-                    className="w-full py-6 bg-[#00FF41] text-black rounded-none flex items-center justify-center gap-4 active:scale-[0.98] transition-all group"
+                    className="flex-1 py-6 bg-[#00FF41] text-black rounded-none flex items-center justify-center gap-4 active:scale-[0.98] transition-all group"
                 >
                     <span className="text-2xl font-black uppercase italic tracking-tighter group-hover:tracking-widest transition-all">Executar Protocolo</span>
                     <i className="fa-solid fa-bolt-lightning animate-pulse"></i>
+                </button>
+                <button
+                    onClick={() => {
+                        onClose();
+                        navigate(`/training/${trainingId}`);
+                    }}
+                    title="Editar Treino"
+                    className="w-20 bg-zinc-900 text-zinc-500 hover:text-white border-l border-zinc-800 flex items-center justify-center transition-all"
+                >
+                    <i className="fa-solid fa-pen-nib text-xl"></i>
                 </button>
             </div>
         </div>

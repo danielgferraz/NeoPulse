@@ -40,10 +40,15 @@ const SessionView: React.FC = () => {
     }[]>([]);
 
     // Combine standard DB exercises with session-only extra exercises
+    const [deletedExerciseIndices, setDeletedExerciseIndices] = useState<number[]>([]);
+    const [exerciseOverrides, setExerciseOverrides] = useState<{ [key: string]: Partial<Exercise> }>({});
+
     const exercises = useMemo(() => {
         if (!dbExercises) return undefined;
-        return [...dbExercises, ...extraExercises];
-    }, [dbExercises, extraExercises]);
+        const combined = [...dbExercises, ...extraExercises];
+        return combined.filter((_, i) => !deletedExerciseIndices.includes(i));
+    }, [dbExercises, extraExercises, deletedExerciseIndices]);
+
     const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
     const [isActive, setIsActive] = useState(false);
@@ -65,13 +70,20 @@ const SessionView: React.FC = () => {
     const [actualWeights, setActualWeights] = useState<{ [exerciseId: number]: string[] }>({});
 
     // Current Exercise Helper
-    // Current Exercise Helper
     const currentExId = useMemo(() => {
         const id = exercises?.[currentExerciseIndex]?.id;
         return typeof id === 'number' ? id : currentExerciseIndex + 1000;
     }, [exercises, currentExerciseIndex]);
 
-    const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
+    const currentExercise = useMemo(() => {
+        const ex = exercises?.[currentExerciseIndex];
+        if (!ex) return ex;
+        const key = ex.id ? ex.id.toString() : `temp-${ex.name}`;
+        if (exerciseOverrides[key]) {
+            return { ...ex, ...exerciseOverrides[key] };
+        }
+        return ex;
+    }, [exercises, currentExerciseIndex, exerciseOverrides]);
 
     // Init Notifications
     useEffect(() => {
@@ -435,13 +447,10 @@ const SessionView: React.FC = () => {
             }
         });
     };
-
     const addFreeExercise = async (exerciseToAdd: Exercise) => {
         if (isFreeTraining) {
-            // Original behavior: Add to DB (persistent for this "Free Workout" pseudo-list)
             await db.exercises.add(exerciseToAdd);
         } else {
-            // New behavior: Add to local state (session only)
             setExtraExercises(prev => [...prev, exerciseToAdd]);
         }
 
@@ -456,6 +465,69 @@ const SessionView: React.FC = () => {
         setTimeLeft(exerciseToAdd.restTimes[0] || 60);
         setDuration(exerciseToAdd.restTimes[0] || 60);
     }
+
+    const handleDeleteSet = (index: number) => {
+        if (!currentExercise || currentExercise.restTimes.length < 1) return;
+
+        const newRests = [...currentExercise.restTimes];
+        const newSetReps = [...(currentExercise.setReps || Array(currentExercise.restTimes.length + 1).fill(''))];
+
+        if (index < newRests.length) {
+            newRests.splice(index, 1);
+        } else {
+            newRests.splice(newRests.length - 1, 1);
+        }
+        newSetReps.splice(index, 1);
+
+        const key = currentExercise.id ? currentExercise.id.toString() : `temp-${currentExercise.name}`;
+        setExerciseOverrides(prev => ({
+            ...prev,
+            [key]: { ...prev[key], restTimes: newRests, setReps: newSetReps }
+        }));
+
+        if (currentSetIndex >= newRests.length + 1) {
+            setCurrentSetIndex(Math.max(0, newRests.length));
+        }
+    };
+
+    const handleDeleteExercise = (index: number) => {
+        if (!exercises || exercises.length <= 1) {
+            alert("Não é possível deletar o último exercício.");
+            return;
+        }
+
+        const combined = [...(dbExercises || []), ...extraExercises];
+        // Find actual index in combined array
+        let actualCombinedIndex = -1;
+        let visibleCount = 0;
+        for (let i = 0; i < combined.length; i++) {
+            if (!deletedExerciseIndices.includes(i)) {
+                if (visibleCount === index) {
+                    actualCombinedIndex = i;
+                    break;
+                }
+                visibleCount++;
+            }
+        }
+
+        if (actualCombinedIndex === -1) return;
+        const exToDelete = combined[actualCombinedIndex];
+        if (!confirm(`Remover "${exToDelete.name}" apenas desta sessão?`)) return;
+
+        if (index === currentExerciseIndex) setIsActive(false);
+
+        // Session-only removal: Add to deleted indices list
+        setDeletedExerciseIndices(prev => [...prev, actualCombinedIndex]);
+
+        if (index < currentExerciseIndex) {
+            setCurrentExerciseIndex(prev => prev - 1);
+        } else if (index === currentExerciseIndex) {
+            if (index === exercises.length - 1) {
+                setCurrentExerciseIndex(prev => prev - 1);
+            }
+            setCurrentSetIndex(0);
+        }
+    };
 
     function currentExercisesCount() {
         return currentExerciseIndex + 1;
@@ -511,39 +583,77 @@ const SessionView: React.FC = () => {
                                 const isCompleted = completedIndices.includes(i);
 
                                 return (
-                                    <button
-                                        key={i}
-                                        onClick={() => jumpToExercise(i)}
-                                        className={`w-full p-4 rounded-2xl border flex items-center gap-4 transition-all ${isCurrent
-                                            ? 'bg-zinc-900 border-[#00FF41] shadow-[0_0_15px_rgba(0,255,65,0.1)]'
-                                            : isCompleted
-                                                ? 'bg-zinc-950 border-zinc-900 opacity-60' // Dimmed for completed
-                                                : 'bg-black border-zinc-900 hover:bg-zinc-900/50' // Defualt for Waiting
-                                            }`}
-                                    >
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${isCurrent ? 'bg-[#00FF41] text-black' :
-                                            isCompleted ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-900 text-zinc-700 border border-zinc-800'
-                                            }`}>
-                                            {isCompleted ? <i className="fa-solid fa-check"></i> :
-                                                isCurrent ? <i className="fa-solid fa-play text-[10px]"></i> :
-                                                    i + 1}
-                                        </div>
-
-                                        <div className="flex-1 text-left">
-                                            <div className={`font-bold text-sm uppercase leading-tight ${isCurrent ? 'text-white' : isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-400'}`}>
-                                                {ex.name}
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            key={i}
+                                            onClick={() => jumpToExercise(i)}
+                                            className={`flex-1 p-4 rounded-2xl border flex items-center gap-4 transition-all ${isCurrent
+                                                ? 'bg-zinc-900 border-[#00FF41] shadow-[0_0_15px_rgba(0,255,65,0.1)]'
+                                                : isCompleted
+                                                    ? 'bg-zinc-950 border-zinc-900 opacity-60' // Dimmed for completed
+                                                    : 'bg-black border-zinc-900 hover:bg-zinc-900/50' // Defualt for Waiting
+                                                }`}
+                                        >
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${isCurrent ? 'bg-[#00FF41] text-black' :
+                                                isCompleted ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-900 text-zinc-700 border border-zinc-800'
+                                                }`}>
+                                                {isCompleted ? <i className="fa-solid fa-check"></i> :
+                                                    isCurrent ? <i className="fa-solid fa-play text-[10px]"></i> :
+                                                        i + 1}
                                             </div>
-                                            <div className="text-[10px] text-zinc-600 mt-0.5 font-medium">
-                                                {ex.restTimes.length} Séries • {ex.restTimes[0]}s Descanso
-                                            </div>
-                                        </div>
 
-                                        {isCurrent && (
-                                            <div className="text-[10px] uppercase font-black text-[#00FF41] tracking-wider animate-pulse">
-                                                Atual
+                                            <div className="flex-1 text-left">
+                                                <div className={`font-bold text-sm uppercase leading-tight ${isCurrent ? 'text-white' : isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-400'}`}>
+                                                    {ex.name}
+                                                </div>
+                                                <div className="text-[10px] text-zinc-600 mt-0.5 font-medium">
+                                                    {ex.restTimes.length + 1} Séries • {ex.restTimes[0]}s Descanso
+                                                </div>
+                                            </div>
+
+                                            {isCurrent && (
+                                                <div className="text-[10px] uppercase font-black text-[#00FF41] tracking-wider animate-pulse">
+                                                    Atual
+                                                </div>
+                                            )}
+                                        </button>
+                                        {!isFreeTraining && (
+                                            <div className="flex flex-col gap-1 h-full min-h-[64px]">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate(`/training/${trainingId}`);
+                                                    }}
+                                                    className="flex-1 w-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 flex items-center justify-center text-zinc-600 hover:text-[#00FF41] transition-all"
+                                                    title="Editar"
+                                                >
+                                                    <i className="fa-solid fa-pen-nib text-[10px]"></i>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteExercise(i);
+                                                    }}
+                                                    className="flex-1 w-10 rounded-xl bg-zinc-900 hover:bg-red-950/20 border border-zinc-800 flex items-center justify-center text-zinc-800 hover:text-red-500 transition-all"
+                                                    title="Excluir"
+                                                >
+                                                    <i className="fa-solid fa-trash-can text-[10px]"></i>
+                                                </button>
                                             </div>
                                         )}
-                                    </button>
+                                        {isFreeTraining && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteExercise(i);
+                                                }}
+                                                className="w-10 h-[inherit] min-h-[64px] rounded-2xl bg-zinc-900 hover:bg-red-950/20 border border-zinc-800 flex items-center justify-center text-zinc-800 hover:text-red-500 transition-all"
+                                                title="Excluir"
+                                            >
+                                                <i className="fa-solid fa-trash-can text-xs"></i>
+                                            </button>
+                                        )}
+                                    </div>
                                 );
                             })}
 
@@ -751,6 +861,14 @@ const SessionView: React.FC = () => {
                     <h1 className="text-2xl font-black italic text-white uppercase tracking-tighter truncate leading-none mt-1">
                         {currentExercise?.name}
                     </h1>
+                    {currentExercise?.notes && (
+                        <div className="flex items-center gap-1.5 mt-1 opacity-70">
+                            <i className="fa-solid fa-note-sticky text-[#00FF41] text-[8px]"></i>
+                            <p className="text-[10px] text-zinc-400 font-medium leading-tight">
+                                {currentExercise.notes}
+                            </p>
+                        </div>
+                    )}
                     <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
                         SÉRIE {currentSetIndex + 1} DE {currentExercise.restTimes.length + 1}
                     </div>
@@ -854,6 +972,7 @@ const SessionView: React.FC = () => {
                             [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')).map((v, i) => i === idx ? val : v)
                         }));
                     }}
+                    onDeleteSet={handleDeleteSet}
                 />
             </div>
 

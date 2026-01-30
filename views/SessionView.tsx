@@ -65,7 +65,11 @@ const SessionView: React.FC = () => {
     const [actualWeights, setActualWeights] = useState<{ [exerciseId: number]: string[] }>({});
 
     // Current Exercise Helper
-    const currentExId = useMemo(() => exercises?.[currentExerciseIndex]?.id || currentExerciseIndex + 1000, [exercises, currentExerciseIndex]);
+    // Current Exercise Helper
+    const currentExId = useMemo(() => {
+        const id = exercises?.[currentExerciseIndex]?.id;
+        return typeof id === 'number' ? id : currentExerciseIndex + 1000;
+    }, [exercises, currentExerciseIndex]);
 
     const currentExercise = useMemo(() => exercises?.[currentExerciseIndex], [exercises, currentExerciseIndex]);
 
@@ -343,10 +347,12 @@ const SessionView: React.FC = () => {
             });
 
             // Update Exercise Table with "Last Used" weights for next time
-            await db.exercises.update(currentEx.id!, {
-                lastWeights: weights,
-                setReps: reps
-            });
+            if (currentEx.id !== undefined) {
+                await db.exercises.update(currentEx.id, {
+                    lastWeights: weights,
+                    setReps: reps
+                });
+            }
 
             // Mark as visually completed
             setCompletedIndices(prev => [...prev, currentExerciseIndex]);
@@ -372,8 +378,9 @@ const SessionView: React.FC = () => {
             });
         } else {
             // Last exercise finished
-            setCompletedIndices(prev => [...prev, currentExerciseIndex]);
+            setCompletedIndices(prev => Array.from(new Set([...prev, currentExerciseIndex])));
             setShowCompleteModal(true);
+            setIsActive(false); // Stop any running timers
         }
     };
 
@@ -636,19 +643,25 @@ const SessionView: React.FC = () => {
                             <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">Treino Concluído!</h3>
                             <p className="text-zinc-400 text-sm mb-8">Parabéns! Você finalizou todos os exercícios previstos.</p>
 
-                            <div className="space-y-3">
-                                <button
-                                    onClick={() => handleFinalFinish()}
-                                    style={{ backgroundColor: theme.primary }}
-                                    className="w-full py-4 rounded-2xl text-black font-black uppercase tracking-widest active:scale-95 transition-transform"
-                                >
-                                    Finalizar Agora
-                                </button>
+                            <button
+                                onClick={() => handleFinalFinish()}
+                                style={{ backgroundColor: theme.primary }}
+                                className="w-full py-4 rounded-2xl text-black font-black uppercase tracking-widest active:scale-95 transition-transform"
+                            >
+                                Finalizar Agora
+                            </button>
+                            <div className="grid grid-cols-2 gap-3">
                                 <button
                                     onClick={() => setShowAddModal(true)}
-                                    className="w-full py-4 rounded-2xl bg-zinc-800 text-white font-black uppercase tracking-widest active:scale-95 transition-transform border border-zinc-700"
+                                    className="py-4 rounded-2xl bg-zinc-800 text-white font-black uppercase tracking-[0.05em] text-[10px] active:scale-95 transition-transform border border-zinc-700"
                                 >
-                                    + Adicionar Exercício
+                                    + Exercício
+                                </button>
+                                <button
+                                    onClick={() => setShowCompleteModal(false)}
+                                    className="py-4 rounded-2xl bg-black text-zinc-400 font-black uppercase tracking-[0.05em] text-[10px] active:scale-95 transition-transform border border-zinc-800"
+                                >
+                                    Revisar
                                 </button>
                             </div>
                         </div>
@@ -738,6 +751,9 @@ const SessionView: React.FC = () => {
                     <h1 className="text-2xl font-black italic text-white uppercase tracking-tighter truncate leading-none mt-1">
                         {currentExercise?.name}
                     </h1>
+                    <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                        SÉRIE {currentSetIndex + 1} DE {currentExercise.restTimes.length + 1}
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -854,11 +870,13 @@ const SessionView: React.FC = () => {
 
                     <button
                         onClick={handleSetComplete}
-                        disabled={isActive}
+                        disabled={isActive || (currentExerciseIndex === exercises.length - 1 && currentSetIndex === currentExercise.restTimes.length && showCompleteModal)}
                         style={{ backgroundColor: isActive ? '#18181b' : theme.primary }}
                         className={`flex-1 h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-xs flex items-center justify-center gap-3 transition-all ${isActive ? 'text-zinc-700 border border-zinc-800' : 'text-black shadow-[0_15px_30px_rgba(0,255,65,0.15)] active:scale-[0.98]'}`}
                     >
-                        <span className="text-sm">{currentSetIndex === currentExercise.restTimes.length ? 'Finalizar Ex' : 'Próxima Série'}</span>
+                        <span className="text-sm">
+                            {currentSetIndex === currentExercise.restTimes.length ? 'Finalizar Ex' : 'Próxima Série'}
+                        </span>
                         <i className="fa-solid fa-bolt text-sm"></i>
                     </button>
 

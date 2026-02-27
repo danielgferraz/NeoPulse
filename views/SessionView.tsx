@@ -63,6 +63,7 @@ const SessionView: React.FC = () => {
     const [showPlaylist, setShowPlaylist] = useState(false);
     const [completedIndices, setCompletedIndices] = useState<number[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showActionMenu, setShowActionMenu] = useState(false);
 
     // Advanced Set State
     const [completedSets, setCompletedSets] = useState<{ [exerciseId: number]: boolean[] }>({});
@@ -288,7 +289,7 @@ const SessionView: React.FC = () => {
                     exercise: currentExercise.name,
                     next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
                     currentSet: currentSetIndex + 1,
-                    totalSets: currentExercise.restTimes.length + 1,
+                    totalSets: currentExercise.restTimes.length,
                     timerEnd: duration ? (Date.now() + duration * 1000) : null,
                     timerStart: null
                 });
@@ -312,10 +313,11 @@ const SessionView: React.FC = () => {
         // Mark current set as completed if not already
         setCompletedSets(prev => ({
             ...prev,
-            [currentExId]: prev[currentExId] ? prev[currentExId].map((v, i) => i === setIdx ? true : v) : Array(currentExercise.restTimes.length + 1).fill(false).map((v, i) => i === setIdx ? true : v)
+            [currentExId]: prev[currentExId] ? prev[currentExId].map((v, i) => i === setIdx ? true : v) : Array(currentExercise.restTimes.length).fill(false).map((v, i) => i === setIdx ? true : v)
         }));
 
-        if (currentSetIndex < currentExercise.restTimes.length) {
+        // Check if there's a next set. Since total sets = restTimes.length, the last set index is restTimes.length - 1.
+        if (currentSetIndex < currentExercise.restTimes.length - 1) {
             const restDuration = currentExercise.restTimes[currentSetIndex];
             const nextSet = currentSetIndex + 1;
             setCurrentSetIndex(nextSet);
@@ -328,7 +330,7 @@ const SessionView: React.FC = () => {
                     exercise: currentExercise.name,
                     next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
                     currentSet: nextSet + 1,
-                    totalSets: currentExercise.restTimes.length + 1,
+                    totalSets: currentExercise.restTimes.length,
                     timerEnd: Date.now() + (restDuration * 1000),
                     timerStart: null
                 });
@@ -352,7 +354,7 @@ const SessionView: React.FC = () => {
 
             completedExercises.current.push({
                 name: currentEx.name,
-                sets: currentEx.restTimes.length + 1,
+                sets: currentEx.restTimes.length,
                 reps: reps,
                 weights: weights,
                 rpes: Array(reps.length).fill(8) // Default RPE as select was removed
@@ -384,7 +386,7 @@ const SessionView: React.FC = () => {
                 exercise: nextExercise.name,
                 next: exercises[currentExerciseIndex + 2]?.name || 'Fim do Treino',
                 currentSet: 1,
-                totalSets: nextExercise.restTimes.length + 1,
+                totalSets: nextExercise.restTimes.length,
                 timerEnd: Date.now() + (restTime * 1000),
                 timerStart: null
             });
@@ -470,7 +472,7 @@ const SessionView: React.FC = () => {
         if (!currentExercise || currentExercise.restTimes.length < 1) return;
 
         const newRests = [...currentExercise.restTimes];
-        const newSetReps = [...(currentExercise.setReps || Array(currentExercise.restTimes.length + 1).fill(''))];
+        const newSetReps = [...(currentExercise.setReps || Array(currentExercise.restTimes.length).fill(''))];
 
         if (index < newRests.length) {
             newRests.splice(index, 1);
@@ -485,8 +487,8 @@ const SessionView: React.FC = () => {
             [key]: { ...prev[key], restTimes: newRests, setReps: newSetReps }
         }));
 
-        if (currentSetIndex >= newRests.length + 1) {
-            setCurrentSetIndex(Math.max(0, newRests.length));
+        if (currentSetIndex >= newRests.length) {
+            setCurrentSetIndex(Math.max(0, newRests.length - 1));
         }
     };
 
@@ -559,7 +561,7 @@ const SessionView: React.FC = () => {
             exercise: targetExercise.name,
             next: exercises[index + 1]?.name || 'Fim do Treino',
             currentSet: 1,
-            totalSets: targetExercise.restTimes.length + 1,
+            totalSets: targetExercise.restTimes.length,
             timerEnd: null,
             timerStart: null
         });
@@ -572,7 +574,7 @@ const SessionView: React.FC = () => {
                     <div className="bg-zinc-950 border-t sm:border border-zinc-800 w-full max-w-sm sm:rounded-[32px] rounded-t-[32px] p-6 animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 shadow-2xl flex flex-col max-h-[85vh]">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-black text-white uppercase italic tracking-tighter">Cronograma</h3>
-                            <button onClick={() => setShowPlaylist(false)} className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 hover:text-white">
+                            <button onClick={() => setShowPlaylist(false)} title="Fechar playlist" className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center text-zinc-500 hover:text-white">
                                 <i className="fa-solid fa-times"></i>
                             </button>
                         </div>
@@ -607,7 +609,7 @@ const SessionView: React.FC = () => {
                                                     {ex.name}
                                                 </div>
                                                 <div className="text-[10px] text-zinc-600 mt-0.5 font-medium">
-                                                    {ex.restTimes.length + 1} Séries • {ex.restTimes[0]}s Descanso
+                                                    {ex.restTimes.length} Séries • {ex.restTimes[0]}s Descanso
                                                 </div>
                                             </div>
 
@@ -811,7 +813,7 @@ const SessionView: React.FC = () => {
 
     const activeExerciseSets = useMemo(() => {
         if (!currentExercise) return [];
-        return Array.from({ length: currentExercise.restTimes.length + 1 });
+        return Array.from({ length: currentExercise.restTimes.length });
     }, [currentExercise]);
 
     if (!exercises || exercises.length === 0) {
@@ -870,7 +872,7 @@ const SessionView: React.FC = () => {
                         </div>
                     )}
                     <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
-                        SÉRIE {currentSetIndex + 1} DE {currentExercise.restTimes.length + 1}
+                        SÉRIE {currentSetIndex + 1} DE {currentExercise.restTimes.length}
                     </div>
                 </div>
 
@@ -883,11 +885,11 @@ const SessionView: React.FC = () => {
                         <i className="fa-solid fa-list-ul text-[10px]"></i>
                     </button>
                     <button
-                        onClick={() => setShowAddModal(true)}
+                        onClick={() => setShowActionMenu(true)}
                         className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500"
-                        title="Adicionar"
+                        title="Opções"
                     >
-                        <i className="fa-solid fa-plus text-[10px]"></i>
+                        <i className="fa-solid fa-ellipsis-vertical text-[12px]"></i>
                     </button>
                 </div>
             </div>
@@ -911,12 +913,13 @@ const SessionView: React.FC = () => {
 
             {/* Compact Timer Stage */}
             <div className="w-full flex flex-col items-center justify-center py-2 shrink-0 relative bg-gradient-to-b from-black to-transparent">
-                <div className="transform scale-90 transition-all duration-500">
+                <div className="transform scale-90 transition-all duration-500 flex flex-col items-center w-full">
                     <Timer
                         timeLeft={isStopwatch ? stopwatchTime : timeLeft}
                         isActive={isActive}
                         isStopwatch={isStopwatch}
                         duration={isStopwatch ? 0 : duration}
+                        onModeChange={setIsStopwatch}
                         onToggle={() => {
                             const newActive = !isActive;
                             setIsActive(newActive);
@@ -925,7 +928,7 @@ const SessionView: React.FC = () => {
                                     exercise: currentExercise.name,
                                     next: exercises[currentExerciseIndex + 1]?.name || 'Fim do Treino',
                                     currentSet: currentSetIndex + 1,
-                                    totalSets: currentExercise.restTimes.length + 1,
+                                    totalSets: currentExercise.restTimes.length,
                                     timerEnd: newActive && !isStopwatch ? Date.now() + (timeLeft * 1000) : null,
                                     timerStart: newActive && isStopwatch ? Date.now() - (stopwatchTime * 1000) : null
                                 });
@@ -951,25 +954,25 @@ const SessionView: React.FC = () => {
                 <WorkoutTracker
                     exercise={currentExercise}
                     currentSetIndex={currentSetIndex}
-                    completedSets={completedSets[currentExId] || Array(currentExercise.restTimes.length + 1).fill(false)}
-                    actualReps={actualReps[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')}
-                    actualWeights={actualWeights[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')}
+                    completedSets={completedSets[currentExId] || Array(currentExercise.restTimes.length).fill(false)}
+                    actualReps={actualReps[currentExId] || Array(currentExercise.restTimes.length).fill('')}
+                    actualWeights={actualWeights[currentExId] || Array(currentExercise.restTimes.length).fill('')}
                     onSetToggle={(idx) => {
                         setCompletedSets(prev => ({
                             ...prev,
-                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length + 1).fill(false)).map((v, i) => i === idx ? !v : v)
+                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length).fill(false)).map((v, i) => i === idx ? !v : v)
                         }));
                     }}
                     onRepChange={(idx, val) => {
                         setActualReps(prev => ({
                             ...prev,
-                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')).map((v, i) => i === idx ? val : v)
+                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length).fill('')).map((v, i) => i === idx ? val : v)
                         }));
                     }}
                     onWeightChange={(idx, val) => {
                         setActualWeights(prev => ({
                             ...prev,
-                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length + 1).fill('')).map((v, i) => i === idx ? val : v)
+                            [currentExId]: (prev[currentExId] || Array(currentExercise.restTimes.length).fill('')).map((v, i) => i === idx ? val : v)
                         }));
                     }}
                     onDeleteSet={handleDeleteSet}
@@ -989,26 +992,84 @@ const SessionView: React.FC = () => {
 
                     <button
                         onClick={handleSetComplete}
-                        disabled={isActive || (currentExerciseIndex === exercises.length - 1 && currentSetIndex === currentExercise.restTimes.length && showCompleteModal)}
-                        style={{ backgroundColor: isActive ? '#18181b' : theme.primary }}
-                        className={`flex-1 h-14 rounded-2xl font-black uppercase tracking-[0.1em] text-xs flex items-center justify-center gap-3 transition-all ${isActive ? 'text-zinc-700 border border-zinc-800' : 'text-black shadow-[0_15px_30px_rgba(0,255,65,0.15)] active:scale-[0.98]'}`}
+                        className={`flex-1 h-14 rounded-2xl flex items-center justify-center font-black tracking-widest uppercase transition-all shadow-2xl active:scale-[0.98] ${isActive
+                            ? 'bg-zinc-800 text-zinc-500 border border-zinc-700'
+                            : 'bg-[#00FF41] text-black hover:bg-[#00dd38]'
+                            }`}
+                        title={isActive ? "Aguardando..." : "Próxima Série"}
                     >
-                        <span className="text-sm">
-                            {currentSetIndex === currentExercise.restTimes.length ? 'Finalizar Ex' : 'Próxima Série'}
-                        </span>
-                        <i className="fa-solid fa-bolt text-sm"></i>
+                        {isActive ? (
+                            <span className="flex items-center gap-2">
+                                <i className="fa-solid fa-hourglass-half text-[10px] animate-pulse"></i>
+                                DESCANSO
+                            </span>
+                        ) : (
+                            <span className="flex items-center gap-2">
+                                CADASTRAR SÉRIE
+                                <i className="fa-solid fa-bolt text-[10px]"></i>
+                            </span>
+                        )}
                     </button>
 
                     <button
                         onClick={() => setShowFinishConfirm(true)}
-                        className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#00FF41]/40 active:text-[#00FF41] active:scale-90 transition-all"
-                        title="Terminar"
+                        className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-[#00FF41] active:bg-[#00FF41]/20 active:scale-90 transition-all"
+                        title="Finalizar"
                     >
                         <i className="fa-solid fa-flag-checkered text-lg"></i>
                     </button>
                 </div>
             </div>
 
+            {/* Action Menu (Bottom Sheet) */}
+            {showActionMenu && (
+                <div className="fixed inset-0 z-[70] flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowActionMenu(false)}></div>
+                    <div className="bg-zinc-900 border-t border-zinc-800 rounded-t-3xl p-6 relative z-10 animate-in slide-in-from-bottom duration-300">
+                        <div className="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => { setShowActionMenu(false); setShowAddModal(true); }}
+                                className="w-full flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-zinc-800/50 hover:border-zinc-700 transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[#00FF41]">
+                                        <i className="fa-solid fa-plus text-xs"></i>
+                                    </div>
+                                    <span className="text-white font-bold text-sm tracking-wide">Adicionar Exercício</span>
+                                </div>
+                                <i className="fa-solid fa-chevron-right text-zinc-600 text-[10px]"></i>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setShowActionMenu(false);
+                                    if (confirm('Deseja realmente pular/remover este exercício da sessão atual?')) {
+                                        handleDeleteExercise(currentExerciseIndex);
+                                    }
+                                }}
+                                className="w-full flex items-center justify-between p-4 bg-black/40 rounded-2xl border border-zinc-800/50 hover:border-red-500/30 transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                                        <i className="fa-solid fa-trash-can text-xs"></i>
+                                    </div>
+                                    <span className="text-white font-bold text-sm tracking-wide">Remover Exercício</span>
+                                </div>
+                                <i className="fa-solid fa-chevron-right text-zinc-600 text-[10px]"></i>
+                            </button>
+
+                            <button
+                                onClick={() => setShowActionMenu(false)}
+                                className="w-full mt-2 py-4 text-zinc-500 font-bold uppercase tracking-widest text-[10px]"
+                            >
+                                Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {modals}
         </div>
     );

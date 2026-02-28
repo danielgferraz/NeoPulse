@@ -13,9 +13,10 @@ interface TimerProps {
   soundMode?: 'beep' | 'voice' | 'silent';
   hapticPattern?: 'heavy' | 'medium' | 'light' | 'dual' | 'triple';
   isStopwatch?: boolean;
+  onModeChange?: (isStopwatch: boolean) => void;
 }
 
-const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, onReset, onAdjust, soundMode = 'beep', hapticPattern = 'medium', isStopwatch = false }) => {
+const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, onReset, onAdjust, soundMode = 'beep', hapticPattern = 'medium', isStopwatch = false, onModeChange }) => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const lastBeepedTime = useRef<number>(-1);
 
@@ -93,74 +94,100 @@ const Timer: React.FC<TimerProps> = ({ timeLeft, isActive, duration, onToggle, o
   const percentage = isStopwatch ? 0 : (isOvertime ? ((timeLeft - duration) / duration) * 100 : (timeLeft / duration) * 100);
   const isUrgent = timeLeft <= 10 && timeLeft > 0;
 
-  const size = 272;
+  const size = 200; // Reduced size for compact layout
   const center = size / 2;
   const radius = center - 8;
   const circumference = 2 * Math.PI * radius;
 
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto select-none">
-      <div className="relative flex items-center justify-center mb-8" style={{ width: size, height: size }}>
-        <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-1000 opacity-20 ${isActive ? (isUrgent ? 'bg-red-500 scale-110' : (isOvertime ? 'bg-purple-500 scale-105' : 'bg-[#00FF41] scale-105')) : 'bg-transparent'
-          }`} />
+    <div className="flex flex-col items-center justify-center w-full max-w-sm mx-auto select-none transition-all duration-500">
 
-        <svg viewBox={`0 0 ${size} ${size}`} className="absolute w-full h-full -rotate-90">
-          <circle cx={center} cy={center} r={radius} stroke={isOvertime ? "#00FF41" : "#111"} strokeWidth="4" fill="transparent" className="transition-colors duration-300" />
-          <circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke="currentColor"
-            strokeWidth="10"
-            fill="transparent"
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference - (circumference * Math.min(percentage, 100)) / 100}
-            strokeLinecap="round"
-            className={`transition-all duration-1000 ease-linear ${isUrgent ? 'text-red-500' : (isOvertime ? 'text-purple-500' : 'text-[#00FF41]')
-              }`}
-          />
-        </svg>
+      {/* Dual-Mode Toggle Pill */}
+      {!isActive && (
+        <div className="flex bg-zinc-900/80 p-1 rounded-full mb-3 border border-zinc-800/50 w-full max-w-[200px] relative z-20">
+          <button
+            onClick={() => onModeChange && onModeChange(false)}
+            className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all ${!isStopwatch ? 'bg-[#00FF41] text-black shadow-lg' : 'text-zinc-500 hover:text-white'}`}
+          >
+            Timer
+          </button>
+          <button
+            onClick={() => onModeChange && onModeChange(true)}
+            className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-full transition-all ${isStopwatch ? 'bg-zinc-200 text-black shadow-lg' : 'text-zinc-500 hover:text-white'}`}
+          >
+            Crono
+          </button>
+        </div>
+      )}
 
-        <div className="flex flex-col items-center justify-center z-10 w-full">
-          <span className={`text-8xl mono font-black tracking-tighter transition-colors ${isUrgent ? 'text-red-500' : 'text-white'}`}>
-            {formatTime(Math.max(0, timeLeft))}
-          </span>
-          <span className="text-[10px] font-black text-zinc-600 tracking-[0.4em] uppercase mt-1">
-            {isActive ? 'DESCANSO' : 'PRONTO'}
-          </span>
+      {/* Expanded Active View */}
+      <div className={`flex flex-col items-center justify-center w-full overflow-hidden transition-all duration-500 origin-top ${isActive ? 'h-[280px] opacity-100 mb-2' : 'h-0 opacity-0 pointer-events-none'}`}>
+        <div className="relative flex items-center justify-center mb-6" style={{ width: size, height: size }}>
+          <div className={`absolute inset-0 rounded-full blur-3xl transition-all duration-1000 opacity-20 ${isActive ? (isUrgent ? 'bg-red-500 scale-110' : (isOvertime ? 'bg-purple-500 scale-105' : 'bg-[#00FF41] scale-105')) : 'bg-transparent'
+            }`} />
+
+          <svg viewBox={`0 0 ${size} ${size}`} className="absolute w-full h-full -rotate-90">
+            <circle cx={center} cy={center} r={radius} stroke={isOvertime ? "#00FF41" : "#111"} strokeWidth="4" fill="transparent" className="transition-colors duration-300" />
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke="currentColor"
+              strokeWidth="8"
+              fill="transparent"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference - (circumference * Math.min(percentage, 100)) / 100}
+              strokeLinecap="round"
+              className={`transition-all duration-1000 ease-linear ${isUrgent ? 'text-red-500' : (isOvertime ? 'text-purple-500' : 'text-[#00FF41]')
+                }`}
+            />
+          </svg>
+
+          <div className="flex flex-col items-center justify-center z-10 w-full">
+            <span className={`text-6xl mono font-black tracking-tighter transition-colors ${isUrgent ? 'text-red-500' : 'text-white'}`}>
+              {formatTime(Math.max(0, timeLeft))}
+            </span>
+            <span className="text-[9px] font-black text-zinc-600 tracking-[0.4em] uppercase mt-1">
+              {isActive ? 'DESCANSO' : 'PRONTO'}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6">
+          <button onClick={() => onAdjust(-30)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">-30s</button>
+          <button onClick={() => onAdjust(-10)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">-10s</button>
+          <div className="w-1 h-1 bg-zinc-800 rounded-full"></div>
+          <button onClick={() => onAdjust(10)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">+10s</button>
+          <button onClick={() => onAdjust(30)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">+30s</button>
         </div>
       </div>
 
-      <div className="flex gap-3 w-full max-w-[272px] mb-8">
-        <button
-          onClick={onReset}
-          className="w-12 h-12 bg-zinc-900/80 rounded-2xl text-zinc-500 flex items-center justify-center border border-zinc-800 active:scale-90 transition-all"
-          title="Reiniciar"
-        >
-          <Icons.Rotate />
-        </button>
+      {/* Main Controls (Always Visible) */}
+      <div className="flex gap-2 w-full max-w-[200px]">
+        {isActive && (
+          <button
+            onClick={onReset}
+            className="w-10 h-10 bg-zinc-900/80 rounded-xl text-zinc-500 flex items-center justify-center border border-zinc-800 active:scale-95 transition-all"
+            title="Reiniciar"
+          >
+            <Icons.Rotate />
+          </button>
+        )}
 
         <button
           title={isActive ? "Pausar" : "Iniciar"}
           onClick={onToggle}
-          className={`flex-1 h-12 rounded-2xl flex items-center justify-center text-black font-black text-xs tracking-widest transition-all shadow-xl active:scale-95 ${isActive ? 'bg-zinc-200' : 'bg-[#00FF41]'
+          className={`flex-1 h-10 rounded-xl flex items-center justify-center text-black font-black text-[10px] tracking-widest transition-all shadow-xl active:scale-95 ${isActive ? 'bg-zinc-200' : 'bg-[#00FF41]'
             }`}
         >
           {isActive ? (
-            <><Icons.Pause /><span className="ml-2 uppercase">PAUSAR</span></>
+            <><div className="scale-75"><Icons.Pause /></div><span className="ml-1.5 uppercase">PAUSAR</span></>
           ) : (
-            <><Icons.Play /><span className="ml-2 uppercase">INICIAR</span></>
+            <><div className="scale-75"><Icons.Play /></div><span className="ml-1.5 uppercase">INICIAR TEMPO</span></>
           )}
         </button>
       </div>
 
-      <div className="flex items-center gap-6">
-        <button onClick={() => onAdjust(-30)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">-30s</button>
-        <button onClick={() => onAdjust(-10)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">-10s</button>
-        <div className="w-1 h-1 bg-zinc-800 rounded-full"></div>
-        <button onClick={() => onAdjust(10)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">+10s</button>
-        <button onClick={() => onAdjust(30)} className="text-[10px] font-bold text-zinc-700 hover:text-zinc-400 transition-colors uppercase">+30s</button>
-      </div>
     </div>
   );
 };

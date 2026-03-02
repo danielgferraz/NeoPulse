@@ -1,0 +1,30 @@
+# Task Checklist
+
+- [x] List available agents
+- [x] Read `ARCHITECTURE.md` and `GEMINI.md` protocol
+- [x] Identify and load relevant agent for current context
+- [x] Load and verify skills and workflows
+- [x] Confirmar com o usuário que skills e workflows estão ativos
+- [x] Rodar checklist inicial [/]
+- [x] Investigar erros de lint detalhados
+- [x] Corrigir erro de lint em `LibraryView.tsx` [/]
+- [x] Validar correções com `npx tsc --noEmit`
+- [x] Executar workflow `/status` manualmente
+- [x] Implementar Arquitetura NeoPulse Player (Spotify Style)
+    - [x] Fase 0: Planejamento Arquitetural (`PLAN-floating-timer.md`)
+    - [x] Fase 1: Elevação de Estado (`WorkoutPlayerContext.tsx` e Banco)
+    - [x] Fase 2: O HUD Mini-Player Flutuante (Bottom Bar)
+    - [x] Fase 3: Expanded View (Now Playing) e Destaque da Série
+    - [x] Fase 4: O "Up Next" (Playlist/Fila interativa) e CRUD em Ação
+    - [x] Fase 5: Implementação de RPE (Dificuldade da série)
+- [x] Fase 6: Correções e Bugs do Timer e Player (Icons Lucide)
+- [x] Fase 7: Player Set Focus e RPE Refinado
+    - [x] Refatorar `PlayerView.tsx` para layout híbrido (Passado acima, Futuro abaixo do Timer)
+    - [x] Refatorar `WorkoutTracker.tsx` com variações `Compact` (Passado/Futuro) e `Expanded` (Atual/Edição)
+    - [x] Escala de RPE ajustada para 7, 7.5... 10
+    - [x] Lógica de Auto-Placeholder pelo Histórico Anterior / Manter valor sem preencher
+- [x] Executar workflow `/deploy` para produção
+    - [x] Realizar pre-flight checks (`tsc`)
+    - [x] Gerar build de produção (`npm run build`)
+    - [x] Sincronizar Capacitor (`npx cap sync android`)
+    - [x] Confirmar conclusão com resumo de versão

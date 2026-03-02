@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Play, Pause, RotateCcw, Plus, Minus, Dumbbell, Sparkles, Check } from 'lucide-react';
 
 export const COLORS = {
   primary: '#00FF41', // Matrix Green
@@ -9,12 +10,12 @@ export const COLORS = {
 };
 
 export const Icons = {
-  Play: () => <i className="fa-solid fa-play"></i>,
-  Pause: () => <i className="fa-solid fa-pause"></i>,
-  Rotate: () => <i className="fa-solid fa-rotate-left"></i>,
-  Plus: () => <i className="fa-solid fa-plus"></i>,
-  Minus: () => <i className="fa-solid fa-minus"></i>,
-  Dumbbell: () => <i className="fa-solid fa-dumbbell"></i>,
-  Sparkles: () => <i className="fa-solid fa-wand-magic-sparkles"></i>,
-  Check: () => <i className="fa-solid fa-check"></i>,
+  Play: () => <Play size={20} fill="currentColor" />,
+  Pause: () => <Pause size={20} fill="currentColor" />,
+  Rotate: () => <RotateCcw size={20} />,
+  Plus: () => <Plus size={20} />,
+  Minus: () => <Minus size={20} />,
+  Dumbbell: () => <Dumbbell size={20} />,
+  Sparkles: () => <Sparkles size={20} />,
+  Check: () => <Check size={20} strokeWidth={3} />,
 };

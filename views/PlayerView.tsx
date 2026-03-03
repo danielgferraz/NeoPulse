@@ -74,6 +74,28 @@ const PlayerView: React.FC = () => {
 
     const currentExercise = player.queue[player.currentExerciseIndex];
 
+    // Tela de Conclusão (Fim da Fila)
+    if (player.currentExerciseIndex >= player.queue.length) {
+        return (
+            <div className="w-full max-w-md h-full flex flex-col items-center">
+                <div className="w-full flex justify-between items-center mb-4">
+                    <button onClick={() => navigate('/')} className="w-10 h-10 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+                        <ChevronDown size={20} />
+                    </button>
+                    <h2 className="text-lg font-black italic tracking-tighter text-white">Finalizar</h2>
+                    <div className="w-10 h-10" />
+                </div>
+                <WorkoutCompletionView
+                    player={player}
+                    onFinish={async () => {
+                        await player.finishWorkout();
+                        navigate('/');
+                    }}
+                />
+            </div>
+        );
+    }
+
     const handleSetUpdate = (setIndex: number, weight: string, reps: string, rpe?: string) => {
         // Safe check se ele ta editando do exercicio ativo ou historico (neste momento só ativo)
         if (currentExercise.id) {
@@ -86,6 +108,7 @@ const PlayerView: React.FC = () => {
             {/* Top Navigation & Info */}
             <div className="w-full flex justify-between items-center mb-4">
                 <button
+                    title="Voltar"
                     onClick={() => navigate('/')}
                     className="w-10 h-10 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 active:scale-90 transition-transform"
                 >
@@ -279,8 +302,47 @@ const PlayerView: React.FC = () => {
                 </div>
 
                 {showUpNext && (
-                    <UpNextList onClose={() => setShowUpNext(false)} />
+                    <UpNextList
+                        onClose={() => setShowUpNext(false)}
+                        onFinishWorkout={async () => {
+                            if (confirm('Deseja encerrar e salvar este treino agora?')) {
+                                await player.finishWorkout();
+                                navigate('/');
+                            }
+                        }}
+                    />
                 )}
+            </div>
+        </div>
+    );
+};
+
+// Componente Interno para Tela de Conclusão
+const WorkoutCompletionView: React.FC<{ player: any, onFinish: () => void }> = ({ player, onFinish }) => {
+    return (
+        <div className="w-full flex-1 flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-500">
+            <div className="w-24 h-24 bg-[#00FF41]/10 rounded-full flex items-center justify-center mb-8 border border-[#00FF41]/20">
+                <i className="fa-solid fa-trophy text-5xl text-[#00FF41] drop-shadow-[0_0_15px_rgba(0,255,65,0.4)]"></i>
+            </div>
+
+            <h2 className="text-4xl font-black italic text-white uppercase tracking-tighter mb-2">Treino Concluído</h2>
+            <p className="text-zinc-500 text-sm uppercase tracking-widest font-bold mb-12">Você executou todo o protocolo.</p>
+
+            <div className="w-full space-y-4 max-w-[280px]">
+                <button
+                    onClick={onFinish}
+                    className="w-full py-6 bg-[#00FF41] text-black rounded-2xl flex items-center justify-center gap-4 active:scale-95 transition-all shadow-[0_10px_30px_rgba(0,255,65,0.2)]"
+                >
+                    <span className="text-xl font-black uppercase italic tracking-tighter">Gravar Treino</span>
+                    <i className="fa-solid fa-check-double"></i>
+                </button>
+
+                <button
+                    onClick={() => player.abortWorkout()}
+                    className="w-full py-2 text-zinc-600 font-bold text-[10px] uppercase tracking-[0.2em] hover:text-red-500 transition-colors"
+                >
+                    Descartar Sessão
+                </button>
             </div>
         </div>
     );

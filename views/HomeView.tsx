@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { WidgetService } from '../services/widgetService';
 import { Preferences } from '@capacitor/preferences';
+import { useWorkoutPlayer } from '../contexts/WorkoutPlayerContext';
 
 const WorkoutPreview = ({ trainingId, onClose, navigate, theme }: { trainingId: number | null, onClose: () => void, navigate: any, theme: any }) => {
     const previewTraining = useLiveQuery(() => trainingId ? db.trainings.get(trainingId) : Promise.resolve(null), [trainingId]);
@@ -85,6 +86,7 @@ const WorkoutPreview = ({ trainingId, onClose, navigate, theme }: { trainingId: 
 };
 
 const HomeView: React.FC = () => {
+    const player = useWorkoutPlayer();
     const trainings = useLiveQuery(() => db.trainings.orderBy('order').toArray());
     const allExercises = useLiveQuery(() => db.exercises.toArray());
     const workoutHistory = useLiveQuery(() => db.history.where('timestamp').above(Date.now() - 30 * 24 * 60 * 60 * 1000).toArray());
@@ -423,7 +425,10 @@ const HomeView: React.FC = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="relative flex flex-col items-center cursor-pointer" onClick={() => navigate(`/session/${activeSession.trainingId}`)}>
+                        <div className="relative flex flex-col items-center cursor-pointer" onClick={async () => {
+                            await player.resumeWorkout();
+                            navigate(`/session/${activeSession.trainingId}`);
+                        }}>
                             <span className="text-[8vw] font-black italic text-[#00FF41] tracking-tighter leading-none animate-pulse">
                                 RETOMAR
                             </span>

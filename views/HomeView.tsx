@@ -96,10 +96,16 @@ const HomeView: React.FC = () => {
 
     const [weightInput, setWeightInput] = useState('');
     const [showWeightInput, setShowWeightInput] = useState(false);
-    const [activeSession, setActiveSession] = useState<any>(null);
+    const activeSessionQuery = useLiveQuery(() => db.activeSession.get('current'));
+    const isSessionActive = !!(
+        activeSessionQuery &&
+        activeSessionQuery.trainingId !== null &&
+        activeSessionQuery.queue &&
+        activeSessionQuery.exerciseIndex < activeSessionQuery.queue.length
+    );
     const [previewTrainingId, setPreviewTrainingId] = useState<number | null>(null);
 
-    // Widget Sync & Persistent Session Check
+    // Widget Sync
     React.useEffect(() => {
         if (workoutHistory && monthlyGoal !== undefined) {
             WidgetService.sync({
@@ -108,30 +114,32 @@ const HomeView: React.FC = () => {
                 weight: weightLogs?.[0]?.weight?.toString() || '---'
             });
         }
+    }, [workoutHistory, monthlyGoal, weightLogs]);
 
-        const checkActive = async () => {
-            const { value } = await Preferences.get({ key: 'neopulse_persistent_session' });
-            if (value) {
-                const session = JSON.parse(value);
-                const tr = await db.trainings.get(session.trainingId);
+    // Persistent Session Sync to Widget
+    React.useEffect(() => {
+        const syncWidget = async () => {
+            if (activeSessionQuery) {
+                const tr = await db.trainings.get(activeSessionQuery.trainingId);
                 if (tr) {
-                    setActiveSession({ ...session, trainingName: tr.name });
-                    // Proactive: Update widget on home load if session exists
+                    // Sync with preferences as fallback for widget if needed, 
+                    // but primarily we use the DB state here
+                    const { value } = await Preferences.get({ key: 'neopulse_persistent_session' });
+                    const prefSession = value ? JSON.parse(value) : null;
+
                     WidgetService.syncSession({
-                        exercise: session.exercise,
-                        next: session.next || '---',
-                        currentSet: session.setIndex + 1,
-                        totalSets: session.totalSets || 1,
-                        timerEnd: session.isActive && !session.isStopwatch ? (session.lastTimestamp + session.timeLeft * 1000) : null,
-                        timerStart: session.isActive && session.isStopwatch ? (session.stopwatchTime ? (Date.now() - session.stopwatchTime * 1000) : null) : null
+                        exercise: prefSession?.exercise || 'Treino',
+                        next: prefSession?.next || '---',
+                        currentSet: activeSessionQuery.setIndex + 1,
+                        totalSets: prefSession?.totalSets || 1,
+                        timerEnd: prefSession?.isActive && !prefSession?.isStopwatch ? (prefSession.lastTimestamp + prefSession.timeLeft * 1000) : null,
+                        timerStart: prefSession?.isActive && prefSession?.isStopwatch ? (prefSession.stopwatchTime ? (Date.now() - prefSession.stopwatchTime * 1000) : null) : null
                     });
                 }
-            } else {
-                setActiveSession(null);
             }
         };
-        checkActive();
-    }, [workoutHistory, monthlyGoal, weightLogs, trainings]);
+        syncWidget();
+    }, [activeSessionQuery]);
 
     const logWeight = async () => {
         const val = parseFloat(weightInput.replace(',', '.'));
@@ -406,7 +414,7 @@ const HomeView: React.FC = () => {
 
                 {/* Main Action: THE VOID START */}
                 <div className="flex-1 flex flex-col justify-center items-center py-10">
-                    {!activeSession ? (
+                    {!isSessionActive ? (
                         <div className="relative group cursor-pointer" onClick={startWorkout}>
                             {/* Layered Effect for Action */}
                             <div className="absolute inset-0 bg-white/5 scale-[2] rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-700"></div>
@@ -427,13 +435,13 @@ const HomeView: React.FC = () => {
                     ) : (
                         <div className="relative flex flex-col items-center cursor-pointer" onClick={async () => {
                             await player.resumeWorkout();
-                            navigate(`/session/${activeSession.trainingId}`);
+                            navigate(`/session/${activeSessionQuery.trainingId}`);
                         }}>
                             <span className="text-[8vw] font-black italic text-[#00FF41] tracking-tighter leading-none animate-pulse">
                                 RETOMAR
                             </span>
                             <span className="text-2xl font-black text-white uppercase italic mt-1 tracking-tighter truncate max-w-[280px]">
-                                {activeSession.trainingName}
+                                {trainings?.find(t => t.id === activeSessionQuery.trainingId)?.name || 'Treino Ativo'}
                             </span>
                         </div>
                     )}

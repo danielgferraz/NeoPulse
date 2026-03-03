@@ -22,19 +22,19 @@ export interface Exercise {
 export interface ActiveSession {
     id: string; // 'current'
     trainingId: number;
-    startTime: number;
+    trainingName?: string;
     exerciseIndex: number;
     setIndex: number;
-    completedExercises: {
-        name: string;
-        sets: number;
-        reps?: string[];
-        weights?: number[];
-        rpes?: number[];
-        totalDuration?: number;
-    }[];
-    extraExercises: Exercise[];
-    completedIndices: number[];
+    queue: Exercise[];
+    completedSets: Record<number, boolean[]>;
+    actualWeights: Record<number, string[]>;
+    actualReps: Record<number, string[]>;
+    actualRpes: Record<number, string[]>;
+    isPlaying: boolean;
+    isStopwatch: boolean;
+    timeLeft: number;
+    stopwatchTime: number;
+    timestamp: number;
 }
 
 export interface HistoryItem {

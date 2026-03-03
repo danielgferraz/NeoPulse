@@ -66,13 +66,33 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="text-zinc-500 font-mono text-xs">{actualWeights[i] || '--'}kg x {actualReps[i] || '--'}</span>
-                                        {actualRpes?.[i] && <span className="bg-zinc-800 text-xs text-zinc-400 px-2 py-0.5 rounded px-1">RPE {actualRpes[i]}</span>}
+                                        {actualRpes?.[i] ? (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActiveRpePromptIdx(activeRpePromptIdx === i ? null : i);
+                                                }}
+                                                className={`text-xs px-2 py-0.5 rounded px-1 transition-all ${activeRpePromptIdx === i ? 'bg-[#00FF41] text-black font-black' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                                            >
+                                                RPE {actualRpes[i]}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setActiveRpePromptIdx(activeRpePromptIdx === i ? null : i);
+                                                }}
+                                                className="w-8 h-5 flex items-center justify-center bg-zinc-900 border border-zinc-800 rounded text-[9px] font-bold text-zinc-600 hover:text-zinc-400 transition-colors"
+                                            >
+                                                RPE?
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                                {i === currentSetIndex - 1 && (
-                                    <div className="w-full bg-[#1A1A1A] rounded-b-xl border border-[#00FF41]/20 -mt-2 pt-3 pb-2 px-2 flex flex-col gap-1.5 animate-in slide-in-from-top-1">
+                                {activeRpePromptIdx === i && (
+                                    <div className="w-full bg-[#1A1A1A] rounded-b-xl border-x border-b border-[#00FF41]/20 -mt-2 pt-3 pb-2 px-2 flex flex-col gap-1.5 animate-in slide-in-from-top-1">
                                         <span className="text-[9px] uppercase font-bold text-[#00FF41]/70 tracking-widest text-center">
-                                            Como foi a Série {i + 1}?
+                                            Ajustar RPE - Série {i + 1}
                                         </span>
                                         <div className="flex w-full justify-between items-center">
                                             {rpeOptions.map((val) => {
@@ -83,8 +103,10 @@ const WorkoutTracker: React.FC<WorkoutTrackerProps> = ({
                                                 return (
                                                     <button
                                                         key={val}
-                                                        onClick={() => {
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
                                                             if (onRpeChange) onRpeChange(i, val);
+                                                            setActiveRpePromptIdx(null);
                                                         }}
                                                         className={`flex-1 mx-0.5 h-8 rounded-md flex items-center justify-center text-[10px] font-black tracking-tighter active:scale-95 transition-all ${isSelected ? 'bg-[#00FF41] text-black shadow-[0_0_8px_rgba(0,255,65,0.3)] ring-1 ring-[#00FF41]' : isHard
                                                             ? 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20'

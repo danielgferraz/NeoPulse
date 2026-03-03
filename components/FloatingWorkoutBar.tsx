@@ -7,7 +7,7 @@ const FloatingWorkoutBar: React.FC = () => {
     const player = useWorkoutPlayer();
     const navigate = useNavigate();
 
-    if (!player.trainingId) return null;
+    if (!player.isActuallyPlaying) return null;
 
     const currentExercise = player.queue[player.currentExerciseIndex];
     if (!currentExercise) return null;
@@ -70,6 +70,7 @@ const FloatingWorkoutBar: React.FC = () => {
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); player.completeCurrentSet(); }}
+                    title="Próxima Série"
                     className="w-10 h-10 rounded-full flex items-center justify-center text-[#00FF41] active:scale-90 transition-transform"
                 >
                     <SkipForward size={18} fill="currentColor" />

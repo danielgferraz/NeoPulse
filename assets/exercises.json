@@ -118,5 +118,173 @@
         "defaultRestTime": 45,
         "icon": "RotateCcw",
         "videoUrl": "https://www.youtube.com/results?search_query=abdominal+supra+execucao"
+    },
+    {
+        "id": "standing_calf_raise",
+        "name": "Panturrilha em Pé",
+        "muscleGroup": "Panturrilhas",
+        "defaultRestTime": 60,
+        "icon": "ArrowUp",
+        "videoUrl": "https://www.youtube.com/results?search_query=panturrilha+em+pe+execucao"
+    },
+    {
+        "id": "seated_calf_raise",
+        "name": "Panturrilha Sentado",
+        "muscleGroup": "Panturrilhas",
+        "defaultRestTime": 60,
+        "icon": "ArrowDown",
+        "videoUrl": "https://www.youtube.com/results?search_query=panturrilha+sentado+execucao"
+    },
+    {
+        "id": "deadlift",
+        "name": "Levantamento Terra",
+        "muscleGroup": "Costas/Pernas",
+        "defaultRestTime": 150,
+        "icon": "Dumbbell",
+        "videoUrl": "https://www.youtube.com/results?search_query=levantamento+terra+execucao"
+    },
+    {
+        "id": "hammer_curl",
+        "name": "Rosca Martelo",
+        "muscleGroup": "Bíceps/Antebraço",
+        "defaultRestTime": 60,
+        "icon": "Activity",
+        "videoUrl": "https://www.youtube.com/results?search_query=rosca+martelo+execucao"
+    },
+    {
+        "id": "wrist_curl",
+        "name": "Rosca Pulso",
+        "muscleGroup": "Antebraço",
+        "defaultRestTime": 45,
+        "icon": "Activity",
+        "videoUrl": "https://www.youtube.com/results?search_query=rosca+pulso+execucao"
+    },
+    {
+        "id": "dumbbell_shrug",
+        "name": "Encolhimento (Halteres)",
+        "muscleGroup": "Trapézio",
+        "defaultRestTime": 60,
+        "icon": "ArrowUp",
+        "videoUrl": "https://www.youtube.com/results?search_query=encolhimento+halteres+execucao"
+    },
+    {
+        "id": "face_pull",
+        "name": "Face Pull",
+        "muscleGroup": "Ombros/Trapézio",
+        "defaultRestTime": 60,
+        "icon": "ArrowDown",
+        "videoUrl": "https://www.youtube.com/results?search_query=face+pull+execucao"
+    },
+    {
+        "id": "leg_curl",
+        "name": "Cadeira Flexora",
+        "muscleGroup": "Pernas",
+        "defaultRestTime": 60,
+        "icon": "ArrowDownCircle",
+        "videoUrl": "https://www.youtube.com/results?search_query=cadeira+flexora+execucao"
+    },
+    {
+        "id": "hip_thrust",
+        "name": "Elevação Pélvica",
+        "muscleGroup": "Pernas/Glúteos",
+        "defaultRestTime": 90,
+        "icon": "ArrowUpCircle",
+        "videoUrl": "https://www.youtube.com/results?search_query=elevacao+pelvica+execucao"
+    },
+    {
+        "id": "russian_twist",
+        "name": "Russian Twist",
+        "muscleGroup": "Abdômen",
+        "defaultRestTime": 45,
+        "icon": "RotateCw",
+        "videoUrl": "https://www.youtube.com/results?search_query=russian+twist+execucao"
+    },
+    {
+        "id": "mountain_climber",
+        "name": "Mountain Climber",
+        "muscleGroup": "HIIT/Core",
+        "defaultRestTime": 30,
+        "icon": "Activity",
+        "videoUrl": "https://www.youtube.com/results?search_query=mountain+climber+execucao"
+    },
+    {
+        "id": "burpee",
+        "name": "Burpee",
+        "muscleGroup": "HIIT/Full Body",
+        "defaultRestTime": 60,
+        "icon": "ArrowUp",
+        "videoUrl": "https://www.youtube.com/results?search_query=burpee+execucao"
+    },
+    {
+        "id": "hyperextension",
+        "name": "Extensão Lombar",
+        "muscleGroup": "Lombar",
+        "defaultRestTime": 60,
+        "icon": "ArrowUp",
+        "videoUrl": "https://www.youtube.com/results?search_query=extensao+lombar+execucao"
+    },
+    {
+        "id": "reverse_fly",
+        "name": "Crucifixo Invertido",
+        "muscleGroup": "Ombros/Costas",
+        "defaultRestTime": 60,
+        "icon": "ArrowRightCircle",
+        "videoUrl": "https://www.youtube.com/results?search_query=crucifixo+invertido+execucao"
+    },
+    {
+        "id": "decline_bench_press",
+        "name": "Supino Declinado",
+        "muscleGroup": "Peito",
+        "defaultRestTime": 90,
+        "icon": "Dumbbell",
+        "videoUrl": "https://www.youtube.com/results?search_query=supino+declinado+execucao"
+    },
+    {
+        "id": "bent_over_row",
+        "name": "Remada Curvada",
+        "muscleGroup": "Costas",
+        "defaultRestTime": 90,
+        "icon": "ArrowDown",
+        "videoUrl": "https://www.youtube.com/results?search_query=remada+curvada+execucao"
+    },
+    {
+        "id": "stiff_deadlift",
+        "name": "Stiff",
+        "muscleGroup": "Pernas",
+        "defaultRestTime": 90,
+        "icon": "ArrowDown",
+        "videoUrl": "https://www.youtube.com/results?search_query=stiff+execucao"
+    },
+    {
+        "id": "lunge",
+        "name": "Afundo",
+        "muscleGroup": "Pernas",
+        "defaultRestTime": 60,
+        "icon": "MoveDown",
+        "videoUrl": "https://www.youtube.com/results?search_query=afundo+execucao"
+    },
+    {
+        "id": "front_raise",
+        "name": "Elevação Frontal",
+        "muscleGroup": "Ombros",
+        "defaultRestTime": 60,
+        "icon": "ArrowUp",
+        "videoUrl": "https://www.youtube.com/results?search_query=elevacao+frontal+execucao"
+    },
+    {
+        "id": "scott_curl",
+        "name": "Rosca Scott",
+        "muscleGroup": "Bíceps",
+        "defaultRestTime": 60,
+        "icon": "Activity",
+        "videoUrl": "https://www.youtube.com/results?search_query=rosca+scott+execucao"
+    },
+    {
+        "id": "tricep_extension_overhead",
+        "name": "Tríceps Testa",
+        "muscleGroup": "Tríceps",
+        "defaultRestTime": 60,
+        "icon": "ArrowUp",
+        "videoUrl": "https://www.youtube.com/results?search_query=triceps+testa+execucao"
     }
 ]

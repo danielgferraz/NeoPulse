@@ -55,6 +55,9 @@ export interface WorkoutPlayerState {
     addExtraSet: () => void;
     addExerciseToQueue: (exercise: Exercise) => void;
     resumeWorkout: () => Promise<void>;
+    finishCurrentExercise: () => void;
+    isProcessingTransition: boolean;
+    isActuallyPlaying: boolean;
 }
 
 const WorkoutPlayerContext = createContext<WorkoutPlayerState | undefined>(undefined);
@@ -83,56 +86,73 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
     const [actualWeights, setActualWeights] = useState<{ [exerciseId: number]: string[] }>({});
     const [actualRpes, setActualRpes] = useState<{ [exerciseId: number]: string[] }>({});
     const [completedIndices, setCompletedIndices] = useState<number[]>([]);
+    const [isProcessingTransition, setIsProcessingTransition] = useState(false);
 
     // 2. Lógica de Persistência (Capacitor Preferences)
     const saveSession = async () => {
-        if (!trainingId) return;
-        const sessionData = {
-            trainingId,
-            trainingName,
-            queue,
-            currentExerciseIndex,
-            currentSetIndex,
-            completedSets,
-            actualReps,
-            actualWeights,
-            actualRpes,
-            completedIndices,
-            lastUpdated: Date.now()
-        };
-        await db.activeSession.put({
-            id: 'current',
-            trainingId: trainingId || 0,
-            startTime: Date.now(), // Simplificado por enquanto
-            exerciseIndex: currentExerciseIndex,
-            setIndex: currentSetIndex,
-            completedExercises: [], // TODO: mapear se necessário
-            extraExercises: [],
-            completedIndices: completedIndices
-        });
-        // Também salvar no Preferences para garantir o botão da Home
-        await Preferences.set({
-            key: 'neopulse_persistent_session',
-            value: JSON.stringify({
+        // Bloqueio rigoroso se estivermos finalizando, sem ID definido, ou se chegamos ao fim (Conclusão)
+        if (trainingId === null || isProcessingTransition || currentExerciseIndex >= queue.length) return;
+
+        try {
+            const sessionData = {
                 trainingId,
-                exercise: queue[currentExerciseIndex]?.name || 'Treino',
-                next: queue[currentExerciseIndex + 1]?.name || '---',
+                trainingName,
+                queue,
+                currentExerciseIndex,
+                currentSetIndex,
+                completedSets,
+                actualReps,
+                actualWeights,
+                actualRpes,
+                completedIndices,
+                lastUpdated: Date.now()
+            };
+
+            // Salvar no Dexie (Fallback e Reatividade da Home)
+            await db.activeSession.put({
+                id: 'current',
+                trainingId: trainingId,
+                trainingName: trainingName,
+                exerciseIndex: currentExerciseIndex,
                 setIndex: currentSetIndex,
-                totalSets: queue[currentExerciseIndex]?.restTimes.length + 1 || 0,
-                lastTimestamp: Date.now(),
-                isActive: isPlaying,
-                isStopwatch,
-                timeLeft,
-                stopwatchTime
-            })
-        });
+                queue: queue,
+                completedSets: completedSets,
+                actualWeights: actualWeights,
+                actualReps: actualReps,
+                actualRpes: actualRpes,
+                isPlaying: isPlaying,
+                isStopwatch: isStopwatch,
+                timeLeft: timeLeft,
+                stopwatchTime: stopwatchTime,
+                timestamp: Date.now()
+            });
+
+            // Salvar no Preferences (Widget e Persistência Hard)
+            await Preferences.set({
+                key: 'neopulse_persistent_session',
+                value: JSON.stringify({
+                    trainingId,
+                    exercise: queue[currentExerciseIndex]?.name || 'Treino',
+                    next: queue[currentExerciseIndex + 1]?.name || '---',
+                    setIndex: currentSetIndex,
+                    totalSets: queue[currentExerciseIndex]?.restTimes.length + 1 || 0,
+                    lastTimestamp: Date.now(),
+                    isActive: isPlaying,
+                    isStopwatch,
+                    timeLeft,
+                    stopwatchTime
+                })
+            });
+        } catch (error) {
+            console.error("Erro ao salvar sessão:", error);
+        }
     };
 
     useEffect(() => {
-        if (trainingId) {
+        if (trainingId !== null && !isProcessingTransition) {
             saveSession();
         }
-    }, [trainingId, currentExerciseIndex, currentSetIndex, completedSets, actualWeights, actualReps, actualRpes, isPlaying]);
+    }, [trainingId, currentExerciseIndex, currentSetIndex, completedSets, actualWeights, actualReps, actualRpes, isPlaying, isProcessingTransition]);
 
     // 3. Lógica do Relógio (Engine)
     useEffect(() => {
@@ -156,7 +176,6 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
     useEffect(() => {
         if (!isStopwatch && timeLeft === 0 && isPlaying) {
             setIsPlaying(false);
-            // scheduleAlert TODO: abstrair notificações pra cá futuramente
         }
     }, [timeLeft, isStopwatch, isPlaying]);
 
@@ -167,15 +186,11 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
 
     const resetTimer = () => {
         const currentExercise = queue[currentExerciseIndex];
-        if (currentExercise && currentExercise.restTimes[currentSetIndex]) {
-            const rest = currentExercise.restTimes[currentSetIndex];
+        if (currentExercise && currentExercise.restTimes[currentSetIndex - 1]) {
+            const rest = currentExercise.restTimes[currentSetIndex - 1];
             setTimeLeft(rest);
             setDuration(rest);
-        } else {
-            setTimeLeft(90);
-            setDuration(90);
         }
-        setStopwatchTime(0);
     };
 
     const adjustTimer = (amount: number) => {
@@ -204,81 +219,149 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
         setIsStopwatch(false);
     };
 
-    const abortWorkout = () => {
-        setTrainingId(null);
-        setQueue([]);
+    const abortWorkout = async () => {
+        setIsProcessingTransition(true);
         setIsPlaying(false);
-        // Clear ActiveSession fallback db
-        db.activeSession.delete('current').catch(console.error);
+
+        try {
+            await Preferences.remove({ key: 'neopulse_persistent_session' });
+            await db.activeSession.delete('current').catch(console.error);
+
+            setQueue([]);
+            setTrainingId(null);
+            setTrainingName('');
+            setCurrentExerciseIndex(0);
+            setCurrentSetIndex(0);
+            setCompletedSets({});
+            setActualReps({});
+            setActualWeights({});
+            setActualRpes({});
+            setCompletedIndices([]);
+            setStopwatchTime(0);
+            setIsStopwatch(false);
+        } finally {
+            setIsProcessingTransition(false);
+        }
     };
 
     const finishWorkout = async () => {
-        if (!trainingId || queue.length === 0) return;
+        if (trainingId === null || queue.length === 0) return;
 
-        // 1. Limpar as preferências IMEDIATAMENTE para evitar race conditions com saveSession
-        await Preferences.remove({ key: 'neopulse_persistent_session' });
-        await db.activeSession.delete('current');
+        setIsProcessingTransition(true);
 
-        // 2. Mapear detalhes para o histórico
-        const details = queue.map((ex, idx) => {
-            const exId = ex.id || idx + 1000;
-            return {
-                name: ex.name,
-                sets: ex.restTimes.length + 1,
-                reps: actualReps[exId] || [],
-                weights: (actualWeights[exId] || []).map(w => parseFloat(w.replace(',', '.')) || 0),
-                rpes: (actualRpes[exId] || []).map(r => parseFloat(r.replace(',', '.')) || 0)
-            };
-        });
+        try {
+            const details = queue.map((ex, idx) => {
+                const exId = ex.id || idx + 1000;
+                return {
+                    name: ex.name,
+                    sets: ex.restTimes.length + 1,
+                    reps: actualReps[exId] || [],
+                    weights: (actualWeights[exId] || []).map(w => parseFloat(w.replace(',', '.')) || 0),
+                    rpes: (actualRpes[exId] || []).map(r => parseFloat(r.replace(',', '.')) || 0)
+                };
+            });
 
-        // 3. Salvar no Banco
-        await db.history.add({
-            exerciseName: trainingName,
-            sets: details.reduce((acc, curr) => acc + curr.sets, 0),
-            timestamp: Date.now(),
-            trainingName: trainingName,
-            details: details
-        });
+            await Preferences.remove({ key: 'neopulse_persistent_session' });
+            await db.activeSession.delete('current');
 
-        // 4. Resetar contexto local
-        setTrainingId(null);
-        setQueue([]);
-        setIsPlaying(false);
+            const currentTrainingName = trainingName;
+
+            setQueue([]);
+            setTrainingId(null);
+            setTrainingName('');
+            setIsPlaying(false);
+            setCurrentExerciseIndex(0);
+            setCurrentSetIndex(0);
+            setCompletedSets({});
+            setActualReps({});
+            setActualWeights({});
+            setActualRpes({});
+            setCompletedIndices([]);
+            setStopwatchTime(0);
+            setIsStopwatch(false);
+
+            await db.history.add({
+                exerciseName: currentTrainingName,
+                sets: details.reduce((acc, curr) => acc + curr.sets, 0),
+                timestamp: Date.now(),
+                trainingName: currentTrainingName,
+                details: details
+            });
+
+        } catch (error) {
+            console.error("Erro ao finalizar treino:", error);
+        } finally {
+            setIsProcessingTransition(false);
+        }
     };
 
     const addExerciseToQueue = (exercise: Exercise) => {
         setQueue(prev => [...prev, exercise]);
     };
 
+    const skipNext = () => {
+        if (currentExerciseIndex < queue.length - 1) {
+            setCurrentExerciseIndex(prev => prev + 1);
+            setCurrentSetIndex(0);
+            setIsPlaying(false);
+            setStopwatchTime(0);
+            const nextRest = queue[currentExerciseIndex + 1]?.restTimes[0] || 90;
+            setDuration(nextRest);
+            setTimeLeft(nextRest);
+        }
+    };
+
+    const skipPrev = () => {
+        if (currentExerciseIndex > 0) {
+            setCurrentExerciseIndex(prev => prev - 1);
+            setCurrentSetIndex(0);
+            setIsPlaying(false);
+            setStopwatchTime(0);
+            const prevRest = queue[currentExerciseIndex - 1]?.restTimes[0] || 90;
+            setDuration(prevRest);
+            setTimeLeft(prevRest);
+        }
+    };
+
+    const finishCurrentExercise = () => {
+        const currentExercise = queue[currentExerciseIndex];
+        if (!currentExercise) return;
+
+        if (currentExerciseIndex < queue.length - 1) {
+            setCurrentExerciseIndex(prev => prev + 1);
+            setCurrentSetIndex(0);
+            setIsPlaying(false);
+            setStopwatchTime(0);
+            const nextRest = queue[currentExerciseIndex + 1]?.restTimes[0] || 90;
+            setDuration(nextRest);
+            setTimeLeft(nextRest);
+        } else {
+            setCurrentExerciseIndex(queue.length);
+        }
+    };
+
     const resumeWorkout = async () => {
         const { value } = await Preferences.get({ key: 'neopulse_persistent_session' });
         if (value) {
-            const session = JSON.parse(value);
-            // Se já estamos no player e o ID bate, não faz nada ou recarrega.
-            // Para NeoPulse, vamos confiar no estado do Context se ele já estiver carregado.
-            // Mas se o Context estiver vazio (pós restart), carregamos do DB.
-            if (!trainingId) {
+            if (trainingId === null) {
                 const active = await db.activeSession.get('current');
                 if (active) {
                     const tr = await db.trainings.get(active.trainingId);
-                    const exes = await db.exercises.where('trainingId').equals(active.trainingId).sortBy('order');
-                    if (tr) {
-                        setTrainingId(active.trainingId);
-                        setTrainingName(tr.name);
-                        setQueue(exes);
-                        setCurrentExerciseIndex(active.exerciseIndex);
-                        setCurrentSetIndex(active.setIndex);
-                        setCompletedIndices(active.completedIndices || []);
-                        // Nota: pesos/reps seriam melhor salvos em uma tabela separada ou no blob da session
-                        // Por ora, vamos garantir que o fluxo de navegação funciona.
-                    }
+                    const exes = active.queue || await db.exercises.where('trainingId').equals(active.trainingId).sortBy('order');
+
+                    setTrainingId(active.trainingId);
+                    setTrainingName(active.trainingName || tr?.name || 'Treino Ativo');
+                    setQueue(exes);
+                    setCurrentExerciseIndex(active.exerciseIndex);
+                    setCurrentSetIndex(active.setIndex);
+                    setCompletedSets(active.completedSets || {});
+                    setActualWeights(active.actualWeights || {});
+                    setActualReps(active.actualReps || {});
+                    setActualRpes(active.actualRpes || {});
                 }
             }
         }
     };
-
-    const skipNext = () => { /* Em breve iterar exercicios */ };
-    const skipPrev = () => { /* Em breve iterar exercicios */ };
 
     const reorderQueue = (fromIndex: number, toIndex: number) => {
         setQueue(prev => {
@@ -323,28 +406,24 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
     };
 
     const completeCurrentSet = () => {
-        // Logica para pular para a proxima serie via Player
         const currentExercise = queue[currentExerciseIndex];
         if (!currentExercise) return;
         const exId = currentExercise.id ? currentExercise.id : currentExerciseIndex + 1000;
 
-        // Marca Set como completo
         setCompletedSets(prev => {
             const arr = [...(prev[exId] || [])];
             arr[currentSetIndex] = true;
             return { ...prev, [exId]: arr };
         });
 
-        // Configura Timer Proxima Serie
         if (currentSetIndex < currentExercise.restTimes.length) {
             const rest = currentExercise.restTimes[currentSetIndex];
             setDuration(rest);
             setTimeLeft(rest);
             setStopwatchTime(0);
-            setIsPlaying(true); // Auto-start the rest
+            setIsPlaying(true);
             setCurrentSetIndex(prev => prev + 1);
         } else {
-            // Fim do exercicio via "Next Track"
             if (!completedIndices.includes(currentExerciseIndex)) {
                 setCompletedIndices(prev => [...prev, currentExerciseIndex]);
             }
@@ -365,25 +444,19 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
         if (!currentExercise) return;
 
         if (currentSetIndex > 0) {
-            // Volta uma série no mesmo exercício
             setCurrentSetIndex(prev => prev - 1);
-
-            // Retoma desmarcando o status se estiver true? Vamos manter fiel ao toggle,
-            // ou apenas voltamos o foco principal
             const exId = currentExercise.id ? currentExercise.id : currentExerciseIndex + 1000;
             setCompletedSets(prev => {
                 const arr = [...(prev[exId] || [])];
-                arr[currentSetIndex - 1] = false; // Desmarca a série ao voltar para forçar usuário a confirmar
+                arr[currentSetIndex - 1] = false;
                 return { ...prev, [exId]: arr };
             });
-
             setIsPlaying(false);
             setStopwatchTime(0);
         } else if (currentExerciseIndex > 0) {
-            // Volta para o último set do exercício anterior
             setCurrentExerciseIndex(prev => prev - 1);
             const prevExercise = queue[currentExerciseIndex - 1];
-            setCurrentSetIndex(prevExercise.restTimes.length - 1);
+            setCurrentSetIndex(prevExercise.restTimes.length);
             setIsPlaying(false);
             setStopwatchTime(0);
         }
@@ -393,32 +466,25 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
         const currentExercise = queue[currentExerciseIndex];
         if (!currentExercise) return;
 
-        // Duplicar configs do ultimo Set
         const lastRest = currentExercise.restTimes[currentExercise.restTimes.length - 1] || 90;
-        const lastTargetRep = currentExercise.targetReps?.[currentExercise.restTimes.length - 1]
-            || currentExercise.setReps?.[currentExercise.restTimes.length - 1]
-            || "0";
-
-        // Gerar nova instânica de exercise
         const updatedExercise = {
             ...currentExercise,
             restTimes: [...currentExercise.restTimes, lastRest]
         };
 
-        // Target / Set Reps array extension
-        if (updatedExercise.targetReps) {
-            updatedExercise.targetReps = [...updatedExercise.targetReps, lastTargetRep];
-        } else if (updatedExercise.setReps) {
-            updatedExercise.setReps = [...updatedExercise.setReps, lastTargetRep];
-        }
-
-        // Apply
         setQueue(prev => {
             const arr = [...prev];
             arr[currentExerciseIndex] = updatedExercise;
             return arr;
         });
     };
+
+    const isActuallyPlaying = useMemo(() => {
+        return trainingId !== null &&
+            queue.length > 0 &&
+            currentExerciseIndex < queue.length &&
+            !isProcessingTransition;
+    }, [trainingId, queue.length, currentExerciseIndex, isProcessingTransition]);
 
     const value: WorkoutPlayerState = {
         trainingId, trainingName,
@@ -428,7 +494,8 @@ export const WorkoutPlayerProvider: React.FC<{ children: ReactNode }> = ({ child
         setIsPlaying, togglePlayPause, setTimerMode, resetTimer, adjustTimer,
         startWorkout, finishWorkout, abortWorkout,
         skipNext, skipPrev, reorderQueue, removeFromQueue,
-        registerSet, completeCurrentSet, previousSet, addExtraSet, addExerciseToQueue, resumeWorkout
+        registerSet, completeCurrentSet, previousSet, addExtraSet, addExerciseToQueue, resumeWorkout, finishCurrentExercise,
+        isProcessingTransition, isActuallyPlaying
     };
 
     return (

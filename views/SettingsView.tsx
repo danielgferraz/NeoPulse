@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme, ThemeName, themes } from '../contexts/ThemeContext';
 import { db } from '../services/db';
+import { exportToXlsx } from '../services/exportService';
 import UpdateChecker from '../components/UpdateChecker';
 
 const SettingsView: React.FC = () => {
@@ -142,6 +143,14 @@ const SettingsView: React.FC = () => {
                             <div className="flex flex-col">
                                 <span className="text-sm font-bold">Fazer Backup</span>
                                 <span className="text-[10px] text-zinc-500">Salvar dados em arquivo .json</span>
+                            </div>
+                        </button>
+                        <div className="h-px bg-zinc-800 mx-4"></div>
+                        <button onClick={exportToXlsx} className="w-full text-left p-4 rounded-xl hover:bg-zinc-800 flex items-center gap-3 text-zinc-300 transition-colors">
+                            <i className="fa-solid fa-file-excel text-zinc-500"></i>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold">Exportar para Excel</span>
+                                <span className="text-[10px] text-zinc-500">Histórico e treinos em planilha .xlsx</span>
                             </div>
                         </button>
                         <div className="h-px bg-zinc-800 mx-4"></div>
